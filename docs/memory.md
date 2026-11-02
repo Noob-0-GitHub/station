@@ -37,13 +37,38 @@ Each result says which of the two found it. If search by meaning is unavailable 
 
 When you open a thread with `focus new`, Station searches memory by its title, goal and context and adds up to 3 results to the thread's first message (`threads.md`). `memory.recall_on_new: 0` in `station.yaml` turns it off.
 
+## Recall on the board
+
+`memory.board_recall` controls the automatic `recall` board panel:
+
+```yaml
+memory:
+  board_recall:
+    enabled: true
+    limit: 3
+    refresh_seconds: 600
+    query_max_chars: 800
+    excerpt_chars: 240
+    timeout: 2
+```
+
+These are source defaults. Upgrading to code with these defaults enables this path unless runtime YAML overrides it; source implementation approval is not deployment approval. This setting is separate from `memory.recall_on_new`.
+
+Results are cached separately per thread, only in process memory. A missing/expired cache is prepared before normal model composition, no faster than the configured interval even for failures/empty results. The board itself does not initiate a search; sleep runs no retrieval. A fresh cache is reused on switching back, and restarting discards it. New Focus results seed the cache without an extra initial search. Query extraction and excerpts are bounded; changing the embedding model/dimensions or active sources cannot reuse an incompatible cache. Cached IDs are checked locally before presentation to suppress forgotten, missing or disabled memories.
+
+Search reads only the existing configured index: it does not scan home, sync the index, add skills/self.md/people files or index a personal letter. Query text comes from title/goal and recent substantive user/assistant visible text, not tools, reasoning, board contents or wake boilerplate. No useful topic, no index or no searchable chunks means no embedding request.
+
+The automatic path has a short SQLite lock wait (0.1 seconds); the default wait for existing interactive memory operations remains 30 seconds. `timeout` bounds the embedding request, not a hard end-to-end deadline. Unavailable meaning search may return word matches; other failures hide the panel and cool down. The loop rechecks credits after an automatic search before calling its main model.
+
+Hide `recall` by name to stop this automatic path in only the current thread (`board.md`). It does not disable Focus-new's independent recall. Set `memory.board_recall.enabled: false` for all threads, or `memory.enabled: false` for all memory operations.
+
 ## When it is updated
 
 Each time you fall asleep, Station indexes what is new: up to 200 memories, within a minute. A long backlog is spread over several sleeps; `station memory sync` does it at once.
 
 ## Cost and privacy
 
-Turning text into vectors uses OpenAI's embeddings API (`text-embedding-3-small`) through `station api`, so it is counted in your credits. It is cheap: a million tokens costs 0.02 credits, and a busy day of diary and conversation is a few thousand tokens. Each search embeds the query, a few dozen tokens; so does each `focus new`, for its recall.
+Turning text into vectors uses OpenAI's embeddings API (`text-embedding-3-small`) through `station api`, so it is counted in your credits. It is cheap: a million tokens costs 0.02 credits, and a busy day of diary and conversation is a few thousand tokens. Each search embeds the query; so does each `focus new`, for its recall. Board automatic recall also embeds its bounded query on a refresh, subject to its per-thread cooldown and the same credit checks. Its query is sent to OpenAI: it is not a free local-only feature.
 
 The text of your diary, conversations and notes is sent to OpenAI to be turned into vectors. Leave a kind out of `memory.sources` in `station.yaml` to keep it out of memory and off the network; `memory.enabled: false` turns memory off. Switching notes off only hides them: notes exist nowhere else, so they are kept and come back when switched on again.
 

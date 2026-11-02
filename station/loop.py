@@ -28,6 +28,7 @@ from . import web
 from . import errors as errors_mod
 from .board import Board
 from . import board_view
+from .board_recall import BoardRecall
 from .inbox import Inbox
 from .llm import LLMError
 from .notes import Diary, Todo
@@ -161,6 +162,7 @@ class Life:
             "notices": self.notices.render,
             "todo": self.todo.render,
             "threads": self._panel_threads,
+            "recall": self._panel_recall,
             "skills": self.skills.render,
             "usage": self._panel_usage,
             "credits": self._panel_credits,
@@ -172,6 +174,7 @@ class Life:
         self.llm = None  # the main model's client; fallbacks live in the router
         self.last_route: dict | None = None
         self.state = self.store.load_state()
+        self.board_recall = BoardRecall()
         self.pending_switch: tuple[str, str | None] | None = None
         self.pending_compress: str | None = None
         self.stopping = False
@@ -291,6 +294,9 @@ class Life:
 
         walk("main", 0)
         return "\n".join(lines)
+
+    def _panel_recall(self) -> str | None:
+        return self.board_recall.panel(self.state["current"], self.cfg)
 
     def _usage_today(self) -> tuple[int, int]:
         return self.store.ledger.model_usage(clock.wall(clock.today(), 0, 0))
@@ -933,6 +939,31 @@ class Life:
         self.sync_memory()
         return self.wait()
 
+    def prepare_board_recall(self, history: list[dict], *, validate_only: bool = False) -> bool:
+        """Prepare automatic memory before composition; rendering itself never searches."""
+        if self.state["status"] != "registered":
+            return False
+        from .memory import Memory
+
+        tid = self.state["current"]
+        event = self.board_recall.prepare(
+            tid, self.state["threads"][tid], history, self.cfg,
+            lambda: Memory(self.root, self.cfg, self.store.ledger, home=self.home, db_timeout=0.1),
+            available=(self.root / "state" / "memory.db").is_file(),
+            hidden="recall" in self.board_visibility()["hidden_names"],
+            validate_only=validate_only,
+        )
+        if event:
+            # Deliberately exclude query text, excerpts, and raw API errors from logs.
+            safe = {k: event[k] for k in ("searched", "ids", "error") if k in event}
+            self.store.log("board_recall", thread=tid, **safe)
+            if safe.get("error"):
+                self.errors.record("memory", "tool", f"board recall: {safe['error']}")
+            if safe.get("searched"):
+                self.check_credits()
+                return True
+        return False
+
     def recall(self, query: str) -> str:
         """A few memories related to a new thread, for its first message. Empty when there are none,
         memory is off, or anything fails: a new thread never waits on or breaks because of memory."""
@@ -945,7 +976,8 @@ class Life:
             mem = Memory(self.root, self.cfg, self.store.ledger, home=self.home)
             if not mem.has_chunks():  # nothing to find: spend no request
                 return ""
-            results, _ = mem.search(query, limit=m["recall_on_new"], timeout=m["recall_timeout"])
+            results, note = mem.search(query, limit=m["recall_on_new"], timeout=m["recall_timeout"])
+            self.board_recall.seed(self.state["current"], self.cfg, results, note)
         except Exception as e:
             self.errors.record("memory", "tool", f"memory recall: {type(e).__name__}: {e}")
             return ""
@@ -1208,6 +1240,11 @@ class Life:
                 self.credit_gate(history)
                 self.disk_gate(history)
                 history = self.maybe_compress(history)
+                if self.prepare_board_recall(history):
+                    self.credit_gate(history)  # embeddings may have consumed the remaining allowance
+                    # That gate may have waited through a reset. Revalidate locally,
+                    # never start a second paid search merely because time passed.
+                    self.prepare_board_recall(history, validate_only=True)
                 system, tools, messages = self.compose(history)
                 try:
                     response = self.call_model(system, tools, messages)

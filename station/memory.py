@@ -237,7 +237,7 @@ def check_vectors(body, count: int, dims: int) -> list[list[float]]:
 
 
 class Memory:
-    def __init__(self, root, cfg: dict, ledger, home=None):
+    def __init__(self, root, cfg: dict, ledger, home=None, *, db_timeout: float = 30):
         self.root = Path(root)
         self.cfg = cfg
         self.mcfg = cfg["memory"]
@@ -246,6 +246,10 @@ class Memory:
             Path(cfg["home"]).expanduser() if cfg.get("home") else self.root / "home")
         self.state = self.root / "state"
         self.path = self.state / "memory.db"
+        if (isinstance(db_timeout, bool) or not isinstance(db_timeout, (int, float))
+                or not math.isfinite(db_timeout) or not 0 <= db_timeout <= 30):
+            raise ValueError("memory database timeout must be between 0 and 30 seconds")
+        self.db_timeout = float(db_timeout)
         self.dims = int(self.mcfg["dimensions"])
         if not 1 <= self.dims <= 8192:
             raise ValueError("memory.dimensions must be between 1 and 8192")
@@ -265,8 +269,8 @@ class Memory:
             import sqlite_vec
         except ImportError:
             raise MemError("sqlite-vec is not installed (pip install sqlite-vec)") from None
-        db = sqlite3.connect(self.path, timeout=30, isolation_level=None)
-        db.execute("PRAGMA busy_timeout = 30000")
+        db = sqlite3.connect(self.path, timeout=self.db_timeout, isolation_level=None)
+        db.execute(f"PRAGMA busy_timeout = {int(self.db_timeout * 1000)}")
         db.enable_load_extension(True)
         sqlite_vec.load(db)
         db.enable_load_extension(False)
@@ -488,6 +492,27 @@ class Memory:
     def has_chunks(self) -> bool:
         with closing(self.connect()) as db:
             return db.execute("SELECT 1 FROM chunks LIMIT 1").fetchone() is not None
+
+    def has_searchable_chunks(self) -> bool:
+        """Local-only availability check restricted to enabled memory kinds."""
+        if not self.kinds:
+            return False
+        with closing(self.connect()) as db:
+            return db.execute(f"SELECT 1 FROM chunks WHERE kind IN ({','.join('?' * len(self.kinds))}) LIMIT 1",
+                              self.kinds).fetchone() is not None
+
+    def cached(self, ids: list[int]) -> list[dict]:
+        """Refresh cached IDs locally, suppressing deleted and disabled memories. No embeddings."""
+        if any(not isinstance(cid, int) or isinstance(cid, bool) or cid <= 0 for cid in ids):
+            raise ValueError("cached memory IDs must be positive integers")
+        ids = list(dict.fromkeys(ids))
+        if not ids or not self.kinds:
+            return []
+        with closing(self.connect()) as db:
+            rows = {r["id"]: dict(r) for r in db.execute(
+                f"SELECT id, kind, ts, title, text FROM chunks WHERE id IN ({','.join('?' * len(ids))}) "
+                f"AND kind IN ({','.join('?' * len(self.kinds))})", [*ids, *self.kinds])}
+        return [rows[cid] for cid in ids if cid in rows]
 
     def search(self, query: str, limit: int = 8, kind: str | None = None,
                since: float | None = None, timeout: float = 30) -> tuple[list[dict], str | None]:

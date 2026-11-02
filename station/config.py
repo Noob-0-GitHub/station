@@ -123,6 +123,14 @@ DEFAULTS: dict = {
         "sync_seconds": 60,
         "recall_on_new": 3,  # memories added to a new thread's first message (0 = none); one search per `focus new`
         "recall_timeout": 10,  # seconds the search by meaning may take; then word matches only
+        "board_recall": {
+            "enabled": True,
+            "limit": 3,
+            "refresh_seconds": 600,
+            "query_max_chars": 800,
+            "excerpt_chars": 240,
+            "timeout": 2,
+        },
     },
     "disk": {
         # Soft quota on the AI's home plus Station's runtime directory, measured with du.
