@@ -58,7 +58,8 @@ class Board:
                  base=None, panel_max_chars: int = 1200, max_chars: int = 6000):
         self.dir = Path(directory)
         self.runner = runner
-        self.builtins = builtins or {}
+        # Reserved even when inactive; its body depends only on each call's rules.
+        self.builtins = {"hidden": lambda: None, **(builtins or {})}
         self.base = base or self.dir
         self.panel_max_chars = panel_max_chars
         self.max_chars = max_chars
@@ -110,10 +111,28 @@ class Board:
         self._cache[panel.name] = {"ts": now, "cmd": panel.command, "text": text, "good": good}
         return text
 
-    def render(self, env: dict) -> str:
+    @staticmethod
+    def _is_hidden(name: str, tags: list[str], names: set[str], tag_rules: set[str]) -> bool:
+        return name != "hidden" and (name in names or bool(tag_rules.intersection(tags)))
+
+    def render(self, env: dict, *, hidden_names: list[str] | None = None,
+               hidden_tags: list[str] | None = None) -> str:
+        names, tag_rules = set(hidden_names or []), set(hidden_tags or [])
+        panels = self.panels()
         now = time.time()
         parts: list[tuple[str, str]] = []
+        if names or tag_rules:
+            # Metadata only: never evaluate callbacks or commands for the overview.
+            matched = [f"- {name} · built-in" for name in self.builtins
+                       if self._is_hidden(name, [], names, tag_rules)]
+            matched.extend(f"- {p.name} · tags={p.tags}" for p in panels
+                           if self._is_hidden(p.name, p.tags, names, tag_rules))
+            body = (f"Hidden names: {sorted(names)}\nHidden tags: {sorted(tag_rules)}\n"
+                    "Matched panels (names/tags only):\n" + ("\n".join(matched) or "(none)"))
+            parts.append(("hidden", f"## hidden · built-in\n{clip(body, self.panel_max_chars)}"))
         for name, fn in self.builtins.items():
+            if name == "hidden" or self._is_hidden(name, [], names, tag_rules):
+                continue
             try:
                 body = fn()
             except Exception as e:
@@ -121,7 +140,9 @@ class Board:
             if body is None:  # a built-in with nothing to say is left out
                 continue
             parts.append((name, f"## {name} · built-in\n{clip(body, self.panel_max_chars)}"))
-        for panel in self.panels():
+        for panel in panels:
+            if self._is_hidden(panel.name, panel.tags, names, tag_rules):
+                continue
             body = self._command_output(panel, env, now) if panel.command else panel.body
             tags = f" [{', '.join(panel.tags)}]" if panel.tags else ""
             parts.append((panel.name, f"## {panel.name}{tags}\n{clip(body, panel.max_chars) or '(empty)'}"))
@@ -155,12 +176,16 @@ class Board:
     # ---- tool ------------------------------------------------------------
 
     def tool(self, action: str, name: str | None = None, text: str | None = None,
-             old: str | None = None, new: str | None = None) -> str:
+             old: str | None = None, new: str | None = None, *,
+             hidden_names: list[str] | None = None, hidden_tags: list[str] | None = None) -> str:
         if action == "list":
-            lines = [f"{n} · built-in" for n in self.builtins]
+            names, tag_rules = set(hidden_names or []), set(hidden_tags or [])
+            lines = [f"{n} · built-in" + (" · hidden" if self._is_hidden(n, [], names, tag_rules) else "")
+                     for n in self.builtins]
             for p in self.panels():
                 kind = "command" if p.command else "static"
-                lines.append(f"{p.name} · {kind} · tags={p.tags}")
+                flag = " · hidden" if self._is_hidden(p.name, p.tags, names, tag_rules) else ""
+                lines.append(f"{p.name} · {kind} · tags={p.tags}{flag}")
             return "\n".join(lines)
         path = self.path(name or "")
         if action == "read":

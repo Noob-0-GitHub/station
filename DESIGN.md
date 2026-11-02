@@ -252,6 +252,12 @@ Plan (each stage is committed when done; P5 and P7 change the system and wait fo
 - P7 Deployment: user, systemd, quotas, nftables, secret audit, install, and the separately reviewed station-bili CLI/skill. Paused by Anthony until subscription readiness and explicit dry-run approval. Do not start a real model as part of installation verification.
 - P8 Smoke test with Anthony's approval.
 
+### 2026-11-02 Board backlog clarification
+
+Anthony clarified that tag-based hiding of board panels is a required feature, not an optional idea. At that review, panel tags were parsed and displayed, but tag-based visibility filtering was not yet implemented. Hiding a panel controls its inclusion in the rendered board; it does not delete its file or create an access-control boundary. Automatic memory recall onto the board is a separate, unimplemented idea and was not approved by this clarification.
+
+Anthony then requested a hidden-board overview, hiding controls and Focus integration, explicitly skipping the source-edit dry run. He clarified that hiding should be independent per thread and need not use board files for storage. Implemented in development: each thread stores its own optional `board_hidden` names/tags; `board hide/show` changes the current thread; Focus `new/switch/view` accepts `hide_boards`/`hide_tags`. New threads start empty, without parent inheritance. A virtual `hidden` panel summarizes current selectors and matching names/tags only. Hidden commands and built-in callbacks are not evaluated. Files remain readable. Model overrides and handoff context still combine with visibility on new/switch. No production update or service start is included. Anthony also requested not rerunning previously successful tests; verification is limited to new cases and any failed cases needing a fix.
+
 Open (status review 2026-11-01):
 
 1. Notes about people (`people/<name>.md`, separating what someone said from what the AI guesses). Approved by Anthony; next.

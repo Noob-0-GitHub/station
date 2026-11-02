@@ -79,15 +79,18 @@ LIFE_TOOLS = [
             "new/switch/close may carry a short context into the thread you go to, the way you would brief someone "
             "taking over. main is your everyday thread and cannot be closed. "
             "model: inspect or change a thread's provider/model/effort/fallback without switching. "
-            "No override means the global model configuration; model selection and failover state are per thread."
+            "No override means the global model configuration; model selection and failover state are per thread. "
+            "view: inspect or change hidden board names/tags on the current thread or an id without switching. "
+            "new/switch also accept hide_boards/hide_tags. Lists replace that field; [] clears it. "
+            "New threads start with no hidden panels; hiding is not inherited from the parent."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "action": {"type": "string", "enum": ["new", "switch", "close", "model"]},
+                "action": {"type": "string", "enum": ["new", "switch", "close", "model", "view"]},
                 "title": {"type": "string", "description": "new: what this is"},
                 "goal": {"type": "string", "description": "new: what done looks like; may be empty"},
-                "id": {"type": "string", "description": "switch/model: an existing thread id; new assigns t1, t2, ..."},
+                "id": {"type": "string", "description": "switch/model/view: an existing thread id; new assigns t1, t2, ..."},
                 "provider": {"type": "string", "description": "Optional new/switch/model: select with model; stored only on that thread"},
                 "model": {"type": "string", "description": "Optional new/switch/model: select with provider"},
                 "effort": {"type": ["string", "null"], "description": "Optional reasoning effort for this thread"},
@@ -96,6 +99,10 @@ LIFE_TOOLS = [
                                        "model": {"type": "string"}, "effort": {"type": ["string", "null"]}},
                                        "required": ["provider", "model"], "additionalProperties": False}},
                 "inherit": {"type": "boolean", "description": "new/switch/model: true clears all thread model overrides; do not combine with model settings"},
+                "hide_boards": {"type": "array", "items": {"type": "string"},
+                                "description": "new/switch/view: replace this thread's hidden panel names; [] clears names. The hidden overview cannot be hidden"},
+                "hide_tags": {"type": "array", "items": {"type": "string"},
+                              "description": "new/switch/view: replace this thread's hidden tags; any exact matching tag hides a panel; [] clears tags"},
                 "context": {"type": "string", "description": "Optional new/switch/close: a sentence or two for the "
                             "thread you go to: what you were doing, what came of it, what to pick up "
                             "(under 2,000 characters)"},
@@ -143,12 +150,16 @@ LIFE_TOOLS = [
     },
     {
         "name": "board",
-        "description": "Manage the panels on your board: list / read / write / patch / delete. See the board skill.",
+        "description": "Manage board panels: list / read / write / patch / delete / hide / show. "
+                       "hide/show uses one name or tag, only in this thread; show all=true resets this thread. "
+                       "Hidden command panels do not run. Files remain readable. See the board skill.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "action": {"type": "string", "enum": ["list", "read", "write", "patch", "delete"]},
+                "action": {"type": "string", "enum": ["list", "read", "write", "patch", "delete", "hide", "show"]},
                 "name": {"type": "string"},
+                "tag": {"type": "string", "description": "hide/show: exact tag; do not combine with name"},
+                "all": {"type": "boolean", "description": "show only: clear all hidden-name/tag rules in this thread"},
                 "text": {"type": "string", "description": "write: the full content"},
                 "old": {"type": "string", "description": "patch: text to replace; must appear exactly once"},
                 "new": {"type": "string"},

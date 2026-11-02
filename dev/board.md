@@ -41,4 +41,4 @@ Without `command` the body is static text. A failing command shows the last good
 
 Panels are added in order. The first panel that does not fit is cut (if at least 300 characters of room are left) and later panels are dropped. A note at the end of the board names what was cut and dropped, so the AI can shorten or delete panels.
 
-Not done yet: views that hide panels by tag.
+Implemented: independent per-thread visibility by exact panel name or any matching tag, persisted in thread state. `board hide/show` edits the current view; Focus `new/switch/view` accepts replacement lists. A virtual `hidden` overview lists selectors and matching names/tags; hidden callbacks and commands are skipped. New threads start with no rules, not a copy of their parent. See `docs/board.md` and `docs/threads.md`.

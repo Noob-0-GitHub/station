@@ -34,11 +34,28 @@ Thread ids are automatic sequential identifiers (`t1`, `t2`, ...), not random an
 - Model settings are not accepted on close. Switching to the current thread remains an error; use model instead.
 
 
+## Board visibility per thread
+
+```json
+{"action": "new", "title": "Coding", "hide_boards": ["system"], "hide_tags": ["social"], "context": "Continue the parser implementation."}
+{"action": "switch", "id": "t1", "hide_tags": ["social", "news"], "context": "Review the tests next."}
+{"action": "view"}
+{"action": "view", "id": "t1", "hide_boards": []}
+{"action": "view", "hide_boards": [], "hide_tags": []}
+```
+
+- Each thread has independent hidden-name and hidden-tag lists, saved with its state. These settings do not affect other threads or global YAML.
+- New threads start with both lists empty unless supplied explicitly; they do not inherit their parent's visibility rules.
+- `new` and `switch` accept both visibility lists alongside model settings and `context`. Each supplied list replaces that field; omitted fields stay unchanged on an existing thread. `[]` clears that list, while `null` is invalid.
+- `view` inspects or changes the current thread, or an active thread selected by `id`, without switching. It does not change models or carry context. Use `new`/`switch` when combining visibility, model selection and handoff text. Model `inherit: true` does not reset board visibility.
+- `close` returns to the parent's existing view. To change the current view directly, use the board tool's `hide`/`show` actions (`board.md`).
+- The virtual `hidden` panel lists the current rules and matching panel names/tags only. It cannot hide itself. Hidden command panels are not executed; their files remain available to `board read` or bash.
+
 ## What carries over
 
 Nothing from one thread's conversation is visible in another. Two ways to carry something across:
 
-- **`context`**, on any action: a sentence or two that arrives in the thread you go to, the way you would brief someone taking over. "I was halfway through the README; the install section is next." It is optional and under 2,000 characters; for more, write a file and name it in the context.
+- **`context`**, on `new`, `switch` and `close`: a sentence or two that arrives in the thread you go to, the way you would brief someone taking over. "I was halfway through the README; the install section is next." It is optional and under 2,000 characters; for more, write a file and name it in the context.
 - **Places every thread sees**: the diary, the todo list, the board, `~/self.md`, memory (`memory.md`), or any file in your home. Use these for what should last.
 
 ## Memories in a new thread
@@ -47,6 +64,7 @@ A new thread's first message ends with up to 3 memories found by its title, goal
 
 ## Per thread
 
-- Each thread has its own wake interval (see `schedule.md`). Cron entries and 09:00 are shared.
+- Each thread has its own wake interval (see `schedule.md`). Cron entries and the configured daily wake, if enabled, are shared.
+- Each thread has its own board visibility rules (above).
 - Each thread is compressed on its own when it gets long (see `compression.md`). A long thread you are not in costs nothing.
 - Messages that arrive while you switch are delivered in the thread you switch to.

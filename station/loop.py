@@ -27,6 +27,7 @@ from . import config as config_mod
 from . import web
 from . import errors as errors_mod
 from .board import Board
+from . import board_view
 from .inbox import Inbox
 from .llm import LLMError
 from .notes import Diary, Todo
@@ -431,7 +432,7 @@ class Life:
         for i in users[-2:]:
             messages[i]["content"][-1]["cache_control"] = mark
         if board and self.state["status"] == "registered":
-            rendered = self.board.render(self.board_env())
+            rendered = self.board.render(self.board_env(), **self.board_visibility())
             messages[-1]["content"].append({"type": "text", "text": rendered})
         return system, tools, messages
 
@@ -613,8 +614,7 @@ class Life:
         if name == "todo":
             return self.todo.tool(str(args.get("action") or ""), args.get("text"), args.get("id")), False
         if name == "board":
-            return self.board.tool(str(args.get("action") or ""),
-                                   **{k: args.get(k) for k in ("name", "text", "old", "new")}), False
+            return self.board_tool(args), False
         if name == "skill":
             return self.skills.read(str(args.get("name") or ""), args.get("file")), False
         if name == "web":
@@ -633,6 +633,20 @@ class Life:
             content, _ = vision.load(str(args.get("path") or ""), self.home)
             return content, False
         return f"no such tool: {name}", True
+
+    def board_visibility(self, tid: str | None = None) -> dict:
+        view = board_view.get(self.state["threads"][tid or self.state["current"]])
+        return {"hidden_names": view["names"], "hidden_tags": view["tags"]}
+
+    def board_tool(self, args: dict) -> str:
+        action = str(args.get("action") or "")
+        if action in ("hide", "show"):
+            tid = self.state["current"]
+            view = board_view.change(self.state["threads"][tid], args)
+            self.store.save_state(self.state)
+            return f"Thread {tid} board view: " + json.dumps(view, ensure_ascii=False)
+        return self.board.tool(action, **{k: args.get(k) for k in ("name", "text", "old", "new")},
+                               **self.board_visibility())
 
     def memory_tool(self, args: dict) -> tuple[str, bool]:
         from .memory import MemError, Memory
@@ -697,6 +711,19 @@ class Life:
     def focus_tool(self, args: dict) -> str:
         action = args.get("action")
         threads, current = self.state["threads"], self.state["current"]
+        view_update = board_view.parse_update(args)
+        if view_update and action not in ("new", "switch", "view"):
+            raise ValueError("board visibility settings are only accepted on new, switch or view")
+        if action == "view":
+            if any(k in args for k in ("provider", "model", "effort", "fallback", "inherit", "context")):
+                raise ValueError("view only changes board visibility; use model or switch for other settings")
+            tid = str(args.get("id") or current)
+            if threads.get(tid, {}).get("status") != "active":
+                raise ValueError(f"no active thread {tid}")
+            if view_update:
+                board_view.configure(threads[tid], view_update)
+                self.store.save_state(self.state)
+            return f"Thread {tid} board view: " + json.dumps(board_view.get(threads[tid]), ensure_ascii=False)
         # `report` was close's old name for it; still accepted.
         context = str(args.get("context") or (args.get("report") if action == "close" else "") or "").strip()
         if len(context) > CONTEXT_CHARS:
@@ -714,6 +741,8 @@ class Life:
                             "parent": current, "status": "active", "created": time.time()}
             try:
                 self.router.configure(tid, args)
+                if view_update:
+                    board_view.configure(threads[tid], view_update)
             except Exception:
                 del threads[tid]
                 raise
@@ -728,6 +757,8 @@ class Life:
             if tid == current:
                 raise ValueError("already in this thread")
             self.router.configure(tid, args)
+            if view_update:
+                board_view.configure(threads[tid], view_update)
             self.store.save_state(self.state)
             self.pending_switch = (tid, f"Switched here from {current} \"{threads[current]['title']}\".{carried}")
             return f"Switching to {tid}."
