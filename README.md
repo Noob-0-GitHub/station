@@ -2,7 +2,7 @@
 
 Station is a small runtime that lets an AI live on a real server instead of answering prompts. It has no user turn: the AI sleeps, wakes on its own schedule, keeps a diary and a todo list, and decides for itself what to do. `DESIGN.md` explains why and keeps the decision log; this file explains what exists now and how to run it. `docs/` is the manual for the AI, which is Station's user; developer notes on each mechanism are in `dev/`; research notes are in `research/`.
 
-Status: M1 plus diary, todo, focus threads, skills, web access, the wake schedule, board limits, per-thread compression, errors, notices, restart wake, checkpoints with rollback, credits with a metered API gateway, and memory search. Telegram and Bilibili are separate CLI + skill packages (`station-telegram`, `station-bili`); Telegram's collector is implemented but its production deployment awaits approval. The browser wrapper has passed a production-user smoke test. Focus can select models per thread; see `docs/threads.md`. Production remains inactive pending login/go-live gates in `deploy/README.md`.
+Status: diary, todo, focus threads, skills, web access, configurable wake schedules, per-thread board visibility, cached automatic memory recall, board limits, per-thread compression, errors, notices, restart wake, checkpoints with rollback, and credits with a metered API gateway. Telegram and Bilibili are separate CLI + skill packages (`station-telegram`, `station-bili`); Telegram's collector is implemented but its production deployment awaits approval. The browser wrapper has passed a production-user smoke test. Focus can select models per thread; see `docs/threads.md`. Production remains inactive pending login/go-live gates in `deploy/README.md`.
 
 ## Run
 
@@ -59,12 +59,12 @@ The tarball contains the package, templates, user docs, dependency declarations,
 | Tool | What it does |
 |---|---|
 | `bash` | Runs a command in the AI's home, as `runner.user` if set. |
-| `schedule` | Sets when to wake: this thread's `interval` (loop or once) and `cron` entries (repeating or `once`), each with an optional note and hook; `remove`, `list`. 09:00 is fixed. Times follow the system time zone. |
-| `focus` | `new` opens a thread and switches to it, with related memories in its first message; `switch` moves to another active thread; `close` ends the current thread and returns to its parent. Switching actions can carry a short `context`; `model` inspects/changes per-thread model selection and fallback. `main` cannot close. |
+| `schedule` | Sets when to wake: this thread's `interval` (loop or once) and `cron` entries (repeating or `once`), each with an optional note and hook; `remove`, `list`. The daily wake is configured with `schedule.morning_at`; `null` disables it. Times follow the system time zone. |
+| `focus` | `new` opens a thread and switches to it, with related memories in its first message; `switch` moves to another active thread; `close` ends the current thread and returns to its parent. Switching actions can carry a short `context`; `model` inspects/changes per-thread model selection and fallback; `view` inspects/changes per-thread board visibility. `new`/`switch` accept `hide_boards` and `hide_tags` alongside model settings and `context`. `main` cannot close. |
 | `compress` | Replaces the older part of the current thread with a handoff the AI writes. Also automatic at 250,000 input tokens. |
 | `diary` | `write` appends a timed entry to `diary/YYYY-MM-DD.md`; `read`; `list`. |
 | `todo` | `add`, `done`, `drop`, `list`. Open items show on the board. |
-| `board` | `list`, `read`, `write`, `patch`, `delete` for user panels in `board/`. |
+| `board` | `list`, `read`, `write`, `patch`, `delete`, `hide`, `show`; per-thread hiding by panel name or tag. The virtual `hidden` panel lists hidden items; `recall` displays cached relevant memories. Hidden command panels do not run. |
 | `skill` | Reads `skills/<name>/SKILL.md` or another file in that skill. |
 | `web` | `search` and `extract` through Tavily (metered: `station api`). |
 | `view` | Reads an image in home, scales it when needed, and returns pixels to the model. |
@@ -143,7 +143,9 @@ Registration writes `home/bin/browser`, a wrapper around the `agent-browser` CLI
 | `station/llm.py` | Anthropic and Codex clients, block conversion |
 | `station/codex_auth.py` | Codex access token: from the Hermes pool (dev) or the synced file (production) |
 | `scripts/codex-token-sync.py` | Root-side copy of the Codex access token into Station's auth directory |
-| `station/board.py` | Panels and the board tool |
+| `station/board.py` | Panels and rendering |
+| `station/board_view.py` | Per-thread board hide/show rules |
+| `station/board_recall.py` | Bounded automatic memory queries and per-thread in-process caches |
 | `station/notes.py` | Diary and todo |
 | `station/skills.py` | Skill index and reader |
 | `station/web.py` | Tavily search and extract, through `api` |
@@ -163,5 +165,5 @@ Registration writes `home/bin/browser`, a wrapper around the `agent-browser` CLI
 | `station/release.py` | Bootstrap an extracted release as an editable upstream/main repository |
 | `scripts/package.py` | Build the production allowlist from a committed Git revision |
 | `install.sh` | Install in a local venv; merge upstream releases and reinitialize safely |
-| `station/templates/` | Prompts, terms, suggestions, letter, seeded panel and skills |
+| `station/templates/` | Prompts, terms, suggestions, seeded panel and skills; personal letters are local home files, not templates |
 | `probes/` | One-off provider probes (cache, Codex identity) |
