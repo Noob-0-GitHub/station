@@ -1,0 +1,11 @@
+[Unit]
+Description=Station (the AI's processes)
+
+[Slice]
+CPUQuota=50%
+# Measured: Chromium via agent-browser peaks ~490 MB, one `claude -p` ~220 MB, Station ~50 MB.
+# Above MemoryHigh the kernel reclaims and swaps (slow, not killed); MemoryMax is the hard stop.
+MemoryHigh=700M
+MemoryMax=900M
+MemorySwapMax=1G
+TasksMax=256

@@ -1,0 +1,10 @@
+[Unit]
+Description=Sync Codex access token from Hermes to Station
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/CodeProjects/station
+Environment=HOME=/root
+UnsetEnvironment=PYTHONPATH PYTHONHOME VIRTUAL_ENV PYTEST_CURRENT_TEST
+ExecStart=/root/CodeProjects/station/.venv/bin/python -P /root/CodeProjects/station/scripts/codex-token-sync.py --user station --dest /home/station/.station/auth/codex.json --model gpt-6.1-sol

@@ -1,0 +1,29 @@
+#!/bin/sh
+# Opt-in, repository-local hook. Enable only after review with:
+#   git config --local core.hooksPath .githooks
+# Commits remain local on push failure; never force-push or pull/deploy automatically.
+set -u
+branch=$(git symbolic-ref --quiet --short HEAD) || {
+    printf '%s\n' 'station auto-push: detached HEAD; not pushing.' >&2
+    exit 0
+}
+head=$(git rev-parse HEAD)
+pending=$(git rev-parse --git-path station-push-pending)
+remote=$(git config --get remote.origin.url || true)
+case "$remote" in
+    https://github.com/Noob-0-GitHub/station.git|https://github.com/Noob-0-GitHub/station) ;;
+    *)
+        printf '%s %s\n' "$branch" "$head" > "$pending"
+        printf '%s\n' 'station auto-push: origin is not the approved Station GitHub URL; local commit kept, push pending.' >&2
+        exit 0
+        ;;
+esac
+if GIT_TERMINAL_PROMPT=0 GH_PROMPT_DISABLED=true timeout 60 \
+    git -c credential.helper= -c 'credential.helper=!gh auth git-credential' \
+    push --set-upstream origin "HEAD:refs/heads/$branch"; then
+    rm -f "$pending"
+else
+    printf '%s %s\n' "$branch" "$head" > "$pending"
+    printf '%s\n' 'station auto-push FAILED: commit remains local. Fix connectivity/auth/conflict and push normally; never force-push.' >&2
+fi
+exit 0

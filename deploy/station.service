@@ -1,0 +1,24 @@
+# Installing this unit does not start Station. Enabling/starting it is the separate go-live gate.
+[Unit]
+Description=Station
+After=network-online.target station-nft.service
+Wants=network-online.target
+Requires=station-nft.service
+
+[Service]
+User=station
+Group=station
+Slice=station.slice
+WorkingDirectory=/home/station
+Environment=HOME=/home/station LANG=C.UTF-8 PATH=/home/station/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/station/station/.venv/bin/python -P /home/station/station/launcher.py --root /home/station/.station --code /home/station/station
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/home/station
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,18 @@
+#!/usr/sbin/nft -f
+# Station (P7). User `station` may reach the internet, and on this machine only ports 10000 and up
+# (its own Claude CLI relay and agent-browser <-> Chromium use random high ports). Ports below
+# 10000 on any local address (SSH, Redis, Hermes API, nginx, the operator's services) and private,
+# link-local (cloud metadata) and CGNAT networks are refused. Operator rule: keep services the AI
+# must not reach below 10000. Loaded by station-nft.service.
+table inet station
+delete table inet station
+table inet station {
+    chain output {
+        type filter hook output priority 0; policy accept;
+        meta skuid != "station" accept
+        fib daddr type local th dport < 10000 counter reject
+        fib daddr type local accept
+        ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10 } counter reject
+        ip6 daddr { fc00::/7, fe80::/10 } counter reject
+    }
+}

@@ -1,0 +1,26 @@
+[project]
+name = "station"
+version = "0.1.0"
+description = "A life loop for an AI that lives on its own and talks like a friend."
+requires-python = ">=3.11"
+dependencies = ["pyyaml>=6", "cronsim>=2.6", "tzlocal>=5", "sqlite-vec==0.1.9", "Pillow==12.0.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+station = "station.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["station*"]
+
+[tool.setuptools.package-data]
+station = ["templates/*.md", "templates/skills/*/*.md", "licenses/*.txt"]
+
+[tool.pytest.ini_options]
+# tests_live/ calls real paid services and a real browser; run it on purpose (tests_live/conftest.py).
+testpaths = ["tests"]

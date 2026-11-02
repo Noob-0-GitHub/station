@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.env
+/auth/
+secrets/
+state/
+logs/
+*.egg-info/
+.pytest_cache/
+dist/
+build/
+# The launcher copy lives here but is never checkpointed or rolled back.
+/launcher.py
+/launcher.py.prev

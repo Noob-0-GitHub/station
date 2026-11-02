@@ -1,0 +1,305 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": 1,
+      "url": "https://code.claude.com/docs/en/context-window",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 2,
+      "url": "https://code.claude.com/docs/en/how-claude-code-works",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 3,
+      "url": "https://code.claude.com/docs/en/memory",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 4,
+      "url": "https://developers.openai.com/api/docs/guides/compaction",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 5,
+      "url": "https://platform.claude.com/docs/en/build-with-claude/compaction",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 6,
+      "url": "https://code.claude.com/docs/en/model-config",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 7,
+      "url": "https://code.claude.com/docs/en/prompt-caching",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 8,
+      "url": "https://platform.claude.com/docs/en/build-with-claude/context-editing",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 9,
+      "url": "https://platform.claude.com/docs/en/build-with-claude/compaction-on-demand",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 10,
+      "url": "https://platform.claude.com/docs/en/build-with-claude/compaction-threshold",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 11,
+      "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/context-compression-and-caching",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 12,
+      "url": "https://code.claude.com/docs/en/troubleshooting",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 13,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/core/src/tasks/compact.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 14,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/core/src/compact.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 15,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/prompts/templates/compact/prompt.md",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 16,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/core/src/compact_remote_v2.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 17,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/core/src/compact_remote_v2_attempt.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 18,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/core/src/compact_remote_v2_installation.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 19,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/protocol/src/openai_models.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 20,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/core/src/session/context_window.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 21,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/core/src/session/turn.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 22,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/core/src/config/mod.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 23,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/core/src/session/async_compaction.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 24,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/core/src/compact_retained_tool_outputs.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 25,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/core/src/compact_token_budget.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 26,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/tui/src/chatwidget/compaction.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 27,
+      "url": "file:///root/CodeProjects/station/README.md",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 28,
+      "url": "file:///root/CodeProjects/station/DESIGN.md",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 29,
+      "url": "file:///root/CodeProjects/station/station/loop.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 30,
+      "url": "file:///root/CodeProjects/station/station/store.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 31,
+      "url": "file:///root/CodeProjects/station/station/llm.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 32,
+      "url": "file:///root/CodeProjects/station/station/config.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 33,
+      "url": "file:///root/CodeProjects/station/station/notes.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 34,
+      "url": "file:///usr/local/lib/hermes-agent/agent/context_compressor.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 35,
+      "url": "file:///usr/local/lib/hermes-agent/agent/auxiliary_client.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 36,
+      "url": "file:///usr/local/lib/hermes-agent/agent/auxiliary_task_config.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 37,
+      "url": "file:///usr/local/lib/hermes-agent/hermes_cli/config_defaults.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 38,
+      "url": "file:///root/temp/MaiBot/src/maisaka/context/post_processor.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 39,
+      "url": "file:///root/temp/MaiBot/src/maisaka/context/compaction.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 40,
+      "url": "file:///root/temp/MaiBot/src/maisaka/chat_loop_service.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 41,
+      "url": "file:///root/temp/MaiBot/src/maisaka/reasoning_engine.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 42,
+      "url": "file:///root/temp/MaiBot/src/config/official_configs.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 43,
+      "url": "file:///root/temp/MaiBot/prompts/en-US/context_compaction.prompt",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 44,
+      "url": "file:///root/temp/MaiBot/src/services/memory_flow_service.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 45,
+      "url": "file:///root/temp/MaiBot/src/A_memorix/core/utils/summary_importer.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 46,
+      "url": "file:///root/temp/MaiBot/prompts/en-US/a_memorix_chat_summary.prompt",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 47,
+      "url": "file:///root/temp/MaiBot/LICENSE",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 48,
+      "url": "https://github.com/openai/codex/blob/67f0994b532b8740f14b5b738af7b7b2a915b1d6/codex-rs/tui/src/slash_command.rs",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 49,
+      "url": "file:///root/temp/MaiBot/src/maisaka/focus/group_runtime.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    },
+    {
+      "id": 50,
+      "url": "file:///root/temp/MaiBot/src/chat/message_receive/bot.py",
+      "title": "",
+      "accessed": "2026-10-31"
+    }
+  ]
+}

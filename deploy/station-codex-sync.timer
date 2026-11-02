@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Station's Codex access-token copy every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Unit=station-codex-sync.service
+
+[Install]
+WantedBy=timers.target

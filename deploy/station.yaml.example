@@ -1,0 +1,31 @@
+# Station runtime config (production, user station). Defaults: ~/station/station/config.py
+provider: claude-subscription-directsdk-experimental   # Claude subscription via the claude CLI
+model: claude-opus-5-5
+effort: medium
+credits:
+  allowances:
+    daily: null   # required local choice before check/run; not a source-code policy
+    weekly: null
+  reset:
+    daily_at: "00:00"
+    weekly_day: monday
+    weekly_at: "00:00"
+schedule:
+  morning_at: null   # optional local HH:MM daily wake
+fallback:
+  - provider: codex
+    model: gpt-6.1-sol
+fallback_retry_per_hour: 3
+claude_code:
+  command: /opt/station-claude/claude
+browser:
+  binary: /opt/station-browser/agent-browser-0.26.0-linux-x64/bin/agent-browser-linux-x64
+  chrome: /opt/station-browser/chromium-1208/chrome-linux64/chrome
+runner:
+  user: null        # Station runs as station; commands run as the same user
+home: /home/station
+secrets:
+  dir: /home/station/.station/auth
+codex:
+  token_file: /home/station/.station/auth/codex.json
+docs_dir: /home/station/station/docs
