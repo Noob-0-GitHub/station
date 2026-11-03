@@ -29,6 +29,10 @@ class LLMError(RuntimeError):
         self.retry_after = retry_after
 
 
+class CallInterrupted(LLMError):
+    """Raised into a model call by the stop signal handler (Life._on_signal); the router turns it into Stop."""
+
+
 def make_llm(cfg: dict):
     provider = cfg.get("provider", "anthropic")
     if provider == "anthropic":
@@ -46,7 +50,8 @@ def _post(url: str, data: bytes, headers: dict, timeout: float = 600):
     return urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers), timeout=timeout)
 
 
-def _with_retries(fn):
+def _with_retries(fn, retries: list | None = None):
+    """Call `fn`, retrying transient HTTP and connection errors; each retry is appended to `retries`."""
     delay = 5.0
     for attempt in range(4):
         try:
@@ -55,6 +60,8 @@ def _with_retries(fn):
             detail = e.read()[:500].decode(errors="replace")
             kind = classify_http(e.code, detail)
             if e.code in RETRY_STATUS and kind in ("transient", "rate_limit") and attempt < 3:
+                if retries is not None:
+                    retries.append({"error": f"HTTP {e.code}", "wait": delay})
                 time.sleep(delay)
                 delay *= 3
                 continue
@@ -62,6 +69,8 @@ def _with_retries(fn):
                            retry_after=retry_after(e.headers, detail)) from None
         except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
             if attempt < 3:
+                if retries is not None:
+                    retries.append({"error": redact(f"{type(e).__name__}: {e}")[:200], "wait": delay})
                 time.sleep(delay)
                 delay *= 3
                 continue
@@ -106,8 +115,10 @@ class Anthropic:
         self.model = cfg["model"]
         self.effort = cfg.get("effort")
         self.max_tokens = cfg["max_tokens"]
+        self.retries: list = []
 
     def call(self, system: list, tools: list, messages: list, tool_choice: str | None = None) -> dict:
+        self.retries = []
         clean = [{**m, "content": [b for b in m["content"] if b.get("type") in ANTHROPIC_BLOCKS]} for m in messages]
         body = {"model": self.model, "max_tokens": self.max_tokens, "system": system, "tools": tools, "messages": clean}
         if tool_choice:
@@ -122,7 +133,7 @@ class Anthropic:
             with _post(f"{self.base}/messages", data, headers) as response:
                 return json.loads(response.read())
 
-        return _with_retries(once)
+        return _with_retries(once, self.retries)
 
 
 # ---- OpenAI Responses API via the Codex subscription -------------------------
@@ -200,6 +211,10 @@ class Codex:
         self.effort = cfg.get("effort")
         self.cred = make_credential(cfg, self.model)
         self.session = str(uuid.uuid4())
+        # Seconds a streamed response may stay silent (connect or between chunks) before it counts as
+        # stuck and is retried. Normal calls stream continuously; a silent stream once hung a stop.
+        self.idle_timeout = float((cfg.get("codex") or {}).get("idle_timeout") or 120)
+        self.retries: list = []
 
     def build(self, system: list, tools: list, messages: list, tool_choice: str | None = None) -> dict:
         instructions = "\n\n".join(b["text"] for b in system)
@@ -239,7 +254,7 @@ class Codex:
         data = json.dumps(body, ensure_ascii=False).encode()
         output: list = []
         final: dict | None = None
-        with _post(f"{auth['base_url'].rstrip('/')}/responses", data, headers) as response:
+        with _post(f"{auth['base_url'].rstrip('/')}/responses", data, headers, timeout=self.idle_timeout) as response:
             for raw in response:
                 line = raw.decode(errors="replace").strip()
                 if not line.startswith("data:"):
@@ -262,12 +277,13 @@ class Codex:
 
     def call(self, system: list, tools: list, messages: list, tool_choice: str | None = None) -> dict:
         body = self.build(system, tools, messages, tool_choice)
+        self.retries = []
         try:
-            result = _with_retries(lambda: self._stream(body, force_auth=False))
+            result = _with_retries(lambda: self._stream(body, force_auth=False), self.retries)
         except LLMError as e:
             if e.status != 401:
                 raise
-            result = _with_retries(lambda: self._stream(body, force_auth=True))
+            result = _with_retries(lambda: self._stream(body, force_auth=True), self.retries)
         u = result["usage"]
         cached = (u.get("input_tokens_details") or {}).get("cached_tokens") or 0
         usage = {

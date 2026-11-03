@@ -22,6 +22,8 @@ import time
 
 from .llm import LLMError, make_llm
 
+SLOW_CALL_SECONDS = 60  # a model call this slow, or one that needed retries, is logged as model_call_slow
+
 NOTICE_KEY = "model-fallback"
 
 
@@ -163,7 +165,9 @@ class Router:
         from .loop import has_old_reasoning, strip_old_reasoning
 
         llm = self.client(i)
+        started = time.monotonic()
         try:
+            self.life.in_model_call = True  # lets the stop signal interrupt the call (Life._on_signal)
             return llm.call(system, tools, messages, tool_choice=tool_choice)
         except LLMError as e:
             if e.kind != "request" or not has_old_reasoning(messages):
@@ -172,6 +176,13 @@ class Router:
                                     model=self.name(self.routes()[i]))
             self.life.store.log("reasoning_dropped", model=self.name(self.routes()[i]), error=str(e)[:300])
             return llm.call(system, tools, strip_old_reasoning(messages), tool_choice=tool_choice)
+        finally:
+            self.life.in_model_call = False
+            seconds = time.monotonic() - started
+            retries = list(getattr(llm, "retries", None) or [])
+            if retries or seconds >= SLOW_CALL_SECONDS:
+                self.life.store.log("model_call_slow", model=self.name(self.routes()[i]),
+                                    seconds=round(seconds, 1), retries=retries[:5])
 
     def main_due(self, now: float) -> bool:
         per_hour = max(int(self.cfg.get("fallback_retry_per_hour") or 0), 0)

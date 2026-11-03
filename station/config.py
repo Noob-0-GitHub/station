@@ -29,6 +29,7 @@ DEFAULTS: dict = {
         "hermes_root": "/usr/local/lib/hermes-agent",
         "hermes_home": "/root/.hermes",
         "python": None,  # Hermes runtime python; null = ask `hermes --print-runtime-command`
+        "idle_timeout": 120,  # seconds a streamed response may stay silent before the attempt is retried
     },
     "claude_code": {
         # provider claude-subscription-directsdk-experimental: the official `claude` CLI does the login.

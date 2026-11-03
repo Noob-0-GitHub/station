@@ -30,7 +30,7 @@ from .board import Board
 from . import board_view
 from .board_recall import BoardRecall
 from .inbox import Inbox
-from .llm import LLMError
+from .llm import CallInterrupted, LLMError
 from .notes import Diary, Todo
 from .notices import Notices
 from . import vision
@@ -179,6 +179,7 @@ class Life:
         self.pending_compress: str | None = None
         self.pending_sleep = False
         self.stopping = False
+        self.in_model_call = False  # set by the router around each model call
         self.restart: dict | None = None
         self._last_beat = 0.0
         self._confirmed = False
@@ -1465,4 +1466,9 @@ class Life:
             time.sleep(min(1, max(end - time.time(), 0.01)))
 
     def _on_signal(self, *_):
+        first = not self.stopping
         self.stopping = True
+        # A model call can block for minutes (a silent stream, retry back-off). Interrupt it once;
+        # the router turns the interruption into Stop, so it is neither a model failure nor a fallback.
+        if first and self.in_model_call:
+            raise CallInterrupted("Station is stopping", "transient")
