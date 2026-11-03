@@ -2,9 +2,9 @@
 
 ## How a turn ends
 
-A model call produces either tool calls or plain text. With tool calls, Station runs them and calls the model again with the results. With no tool call, the turn is over: Station stops calling the model and the AI is asleep until the next wake.
+A model call produces tool calls, plain text, or both. Station executes every tool in the response and saves their results. A successful `schedule(action="sleep")` requests sleep after that batch; otherwise the model continues. Text without tools receives a neutral `<env>` continuation and does not cause sleep. Onboarding still requires register or exit and retains its two-text refusal rule.
 
-There is no `sleep` tool. Ending a turn by not calling a tool is the behaviour these models are trained on, so it needs no instruction beyond one line in `system.md`. A dedicated tool would add a second way to stop and a question the runtime has to answer anyway: what happens when the model replies with text only.
+There is no standalone sleep tool or sleep boolean. `sleep` is an action on `schedule`, with no other arguments. Alarm changes do not request sleep. Normal credit/disk/error gates still apply; no new idle-sleep cap is imposed. This explicitly separates a chat model's habit of ending an answer from its decision to rest.
 
 Text that comes with the last reply is private. It is written to `state/log.jsonl` (`kind: text`) and to the thread history, never sent anywhere. `system.md` tells the AI that nobody reads it and nobody is waiting, so it does not write closing summaries for an audience. Talking to someone will go through a channel tool (Telegram, later).
 
@@ -52,7 +52,7 @@ A hook that asks a small model whether to wake is possible in principle, but the
 
 ## Restarts
 
-`state.sleep` records when the turn ended and the last interval wake already handled; each cron entry and the morning keep their own `last`. If Station stops while the AI is asleep, the next start resumes the same sleep and recomputes from the saved schedule, so anything missed while it was down wakes the AI immediately, as a single wake.
+The in-memory pending sleep request is committed as one-shot `state.sleep_requested` only after the complete batch's results are appended. Compression and Focus handoffs complete before the final current thread sleeps. Entering sleep consumes that request and saves `state.sleep`, which records when sleep began and the last interval wake already handled. Both a saved request and a saved sleep resume after restart, including when the last history message contains tool results rather than assistant text. Results already saved are not replaced by fabricated lost-result placeholders. Older assistant-tail sleep histories remain supported. Each cron entry and the daily wake retain their own `last`; unexpected restart wakes keep their existing rate limits.
 
 ## Config
 

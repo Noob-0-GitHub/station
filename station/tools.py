@@ -43,8 +43,10 @@ LIFE_TOOLS = [
     {
         "name": "schedule",
         "description": (
-            "Plan when to wake. When you stop (reply without calling any tool), the turn ends and you sleep "
-            "until the next scheduled wake. A daily wake may also be set in runtime config. Times use this server's time zone. "
+            "Plan when to wake, or explicitly sleep. sleep: end this awake turn after this batch's tools finish "
+            "and their results are saved; wait for the existing alarms. Takes only action. "
+            "A reply without tools stays private and continues the loop; it does not put you to sleep. "
+            "Other actions only manage alarms. A daily wake may also be set in runtime config. Times use this server's time zone. "
             "interval: wake this thread every N minutes, looping by default; once=true wakes once; minutes=0 turns it off. "
             "cron: wake on a cron expression (minute hour day month weekday); once=true removes it after it fires. "
             "One entry per expression: adding the same one again updates it. Alarms due at the same time wake you once. "
@@ -55,7 +57,7 @@ LIFE_TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "action": {"type": "string", "enum": ["interval", "cron", "remove", "list"]},
+                "action": {"type": "string", "enum": ["interval", "cron", "remove", "list", "sleep"]},
                 "minutes": {"type": "number", "description": "interval: minutes between wakes; 0 turns it off"},
                 "once": {"type": "boolean", "description": "Fire only once. Default false"},
                 "expr": {

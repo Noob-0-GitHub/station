@@ -231,7 +231,7 @@ def test_hook_exit_zero_skips_one_wake(tmp_path):
     life = make(tmp_path, [
         [use("register", "r", name="Lin")],
         [use("schedule", "s", action="interval", minutes=0.002, hook=hook, note="look")],
-        [{"type": "text", "text": "sleeping"}],
+        [use("schedule", "sleep", action="sleep")],
         [use("bash", "b", command="true")],
     ])
     life.cfg["schedule"]["morning_at"] = "09:00"

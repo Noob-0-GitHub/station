@@ -50,7 +50,7 @@ The tarball contains the package, templates, user docs, dependency declarations,
 
 1. **Welcome screen.** The first input is `templates/welcome.md` plus `templates/terms.md`. It says Station is connected to the real world, invites the AI to live like a person rather than an assistant, and asks it to pick a human-like name. Only `register(name)` and `exit(reason)` are available.
 2. **Registration.** A name is required. Product and model names (GPT, Claude, Sol, 助手, …) and empty names are rejected and the AI can try again. On success the runtime seeds the home directory and returns `templates/registered.md`, a software-style welcome screen: host facts, the Linux user whose permissions the AI has, that its home is private, the files in its home (including `~/suggestions.md`, an empty `~/self.md` shown at the top of every board, and the code directory, with the rule to keep data out of it), the documentation in `docs_dir`, and the default wake interval.
-3. **Life loop.** Each call sends the current thread's history with a fresh board appended at the end. A reply with no tool call ends the turn; its text is logged, not automatically delivered to a person, and the AI sleeps until the next wake (`dev/schedule.md`).
+3. **Life loop.** Each call sends the current thread's history with a fresh board appended at the end. Text without tools is private and continues the loop with a neutral environment message. Only `schedule(action="sleep")` requests normal sleep; the current batch's tools finish and their results are saved first (`dev/schedule.md`).
 
 `exit` stops the runtime for good and leaves a notice in the outbox. Two replies without a tool call during onboarding count as `exit`.
 
@@ -70,7 +70,7 @@ The tarball contains the package, templates, user docs, dependency declarations,
 | `view` | Reads an image in home, scales it when needed, and returns pixels to the model. |
 | `memory` | Searches and manages long-term diary/chat/note memories. |
 
-There is no `sleep` tool (ending a turn is sleeping). External messaging is performed deliberately through separate companion CLIs; the private model response is not automatically sent.
+There is no standalone `sleep` tool: use `schedule` with `action: sleep`. Setting alarms does not put the AI to sleep. External messaging is performed deliberately through separate companion CLIs; the private model response is not automatically sent.
 
 ## Docs
 

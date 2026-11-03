@@ -177,6 +177,7 @@ class Life:
         self.board_recall = BoardRecall()
         self.pending_switch: tuple[str, str | None] | None = None
         self.pending_compress: str | None = None
+        self.pending_sleep = False
         self.stopping = False
         self.restart: dict | None = None
         self._last_beat = 0.0
@@ -828,7 +829,7 @@ class Life:
         return history
 
     # ---- schedule --------------------------------------------------------
-    # The AI ends a turn by not calling any tool. It then sleeps until the
+    # The AI explicitly ends its awake turn with schedule(action="sleep"), then sleeps until the
     # earliest configured source: the current thread's interval, a cron entry, or a daily wake.
     # Sources due at the same time make one wake. Events never wake it.
 
@@ -866,10 +867,15 @@ class Life:
         now = time.time()
         nxt = next_wake(s, iv, now, now, morning_at=morning)
         when = f"wake at {clock_text(max(nxt, now))}" if nxt is not None else "no scheduled wake"
-        return "; ".join(parts) + f". If you stop now: {when}"
+        return "; ".join(parts) + f". If you sleep now: {when}"
 
     def schedule_tool(self, args: dict) -> str:
         action = args.get("action")
+        if action == "sleep":
+            if set(args) != {"action"}:
+                raise ValueError("sleep takes only action; set alarms in a separate schedule call")
+            self.pending_sleep = True
+            return "OK: sleeping after this batch's tools finish and their results are saved."
         cfg = self.cfg["schedule"]
         s = self.schedule_state()
         hook = str(args.get("hook") or "").strip() or None
@@ -888,7 +894,7 @@ class Life:
                 raise ValueError(f"minutes must be between {cfg['min_minutes']} and {cfg['max_minutes']}")
             self.state["threads"][tid]["interval"] = {"minutes": minutes, "once": once, "hook": hook, "note": note}
             mode = "once" if once else "looping"
-            return f"{tid} now wakes every {minutes:g} minutes ({mode}), counted from when you stop."
+            return f"{tid} now wakes every {minutes:g} minutes ({mode}), counted from when you sleep."
         if action == "cron":
             expr = " ".join(str(args.get("expr") or "").split())
             nxt = Cron(expr).next_after(now)
@@ -927,17 +933,34 @@ class Life:
             morning = cfg.get("morning_at")
             lines.append(f"daily wake: {morning}" if morning is not None else "daily wake: off")
             nxt = next_wake(s, self.interval(), now, now, morning_at=morning)
-            lines.append(f"If you stop now: wake at {now_text(max(nxt, now))}" if nxt is not None
-                         else "If you stop now: no scheduled wake")
+            lines.append(f"If you sleep now: wake at {now_text(max(nxt, now))}" if nxt is not None
+                         else "If you sleep now: no scheduled wake")
             return "\n".join(lines)
         raise ValueError(f"unknown action: {action}")
 
     def sleep(self) -> list[dict]:
         now = time.time()
         self.state["sleep"] = {"since": now, "cursor": now, "thread": self.state["current"]}
+        self.state.pop("sleep_requested", None)
         self.store.save_state(self.state)
+        self.store.log("rest", thread=self.state["current"])
         self.sync_memory()
         return self.wait()
+
+    def resume_sleep(self, history: list[dict]) -> list[dict]:
+        """Complete a saved sleep transition, including after a restart at a user tail."""
+        if self.state.get("sleep"):
+            line = self.restart_line()
+            content = self.wait(restart=line if self.restart_wake_allowed() else None)
+        elif self.state.get("sleep_requested"):
+            content = self.sleep()
+        else:
+            return history
+        msg = {"role": "user", "content": content}
+        self.store.append_history(self.state["current"], msg)
+        history.append(msg)
+        self.store.save_state(self.state)
+        return history
 
     def prepare_board_recall(self, history: list[dict], *, validate_only: bool = False) -> bool:
         """Prepare automatic memory before composition; rendering itself never searches."""
@@ -1142,9 +1165,11 @@ class Life:
                     self.store.outbox("[station] The AI replied twice without calling register or exit; treated as exit.")
                     return None
                 return {"role": "user", "content": [env_text("Call register to register, or exit to leave.")]}
-            # No tool call ends the turn: whatever text came with it stays private (logged only).
-            self.store.log("rest", thread=self.state["current"])
-            return {"role": "user", "content": self.sleep()}
+            # Text is private, not an implicit request to sleep.
+            return {"role": "user", "content": [env_text(
+                "Your text was recorded privately. You remain awake. "
+                "Continue acting or call schedule with action='sleep'."
+            ), *self.drain_events()]}
         results = []
         for b in uses:
             if self.state["status"] == "exited":
@@ -1184,6 +1209,8 @@ class Life:
             first = {"role": "user", "content": [{"type": "text", "text": welcome}]}
             self.store.append_history("main", first)
             return [first]
+        if history[-1]["role"] == "user" and (self.state.get("sleep") or self.state.get("sleep_requested")):
+            return self.resume_sleep(history)
         if history[-1]["role"] == "user" and self.restart:
             # Crashed while the model call for this message was pending: say so on the retry.
             history[-1]["content"].append(env_text(f"{now_text()} {self.restart_line()}"))
@@ -1191,21 +1218,19 @@ class Life:
             return history
         if history[-1]["role"] == "assistant":
             uses = [b for b in history[-1]["content"] if b.get("type") == "tool_use"]
+            if not uses and (self.state.get("sleep") or self.state.get("sleep_requested")):
+                return self.resume_sleep(history)
             line = self.restart_line()
             if uses:
                 content = [{"type": "tool_result", "tool_use_id": b["id"], "content": "(the program restarted; the result of this call was lost)"}
                            for b in uses] + ([env_text(f"{now_text()} {line}")] if line else []) + self.drain_events()
-            elif self.state.get("sleep"):
-                # It had ended its turn and was asleep: wake now for an unexpected restart (if not
-                # rate-limited), otherwise resume that sleep.
-                content = self.wait(restart=line if self.restart_wake_allowed() else None)
             else:
                 content = [env_text(f"{now_text()} {line or 'The program restarted.'}"), *self.drain_events()]
             msg = {"role": "user", "content": content}
             self.store.append_history(tid, msg)
             self.store.save_state(self.state)
             history.append(msg)
-        return history
+        return self.resume_sleep(history)
 
     def run(self, max_calls: int | None = None) -> str:
         credits_mod.validate(self.cfg["credits"])
@@ -1272,6 +1297,11 @@ class Life:
                         nxt["content"].append(hint)
                     self.store.append_history(tid, nxt)
                     history.append(nxt)
+                    if self.pending_sleep:
+                        # Persist only after the complete batch's tool results are durable.
+                        self.state["sleep_requested"] = True
+                        self.pending_sleep = False
+                        self.store.save_state(self.state)
                     if self.pending_compress is not None:
                         focus, self.pending_compress = self.pending_compress, None
                         new, note = self.compress(tid, history, focus, "tool")
@@ -1284,6 +1314,7 @@ class Life:
                     history = self.recover(self.apply_switch())
                 self.store.save_state(self.state)
                 self.confirm()
+                history = self.resume_sleep(history)
             self._exit_reason = self.state["status"]
             return self.state["status"]
         except Stop:

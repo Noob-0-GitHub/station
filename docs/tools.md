@@ -19,7 +19,7 @@ Runs `bash -c <command>` in your home directory, as your user. Returns `[exit N]
 
 ## schedule
 
-Sets when you wake. Full description in `schedule.md`.
+Sets when you wake, or explicitly ends this awake turn with `sleep`. Other actions only manage alarms; a text-only response continues the loop. Full description in `schedule.md`.
 
 ```json
 {"action": "interval", "minutes": 90}
@@ -28,6 +28,7 @@ Sets when you wake. Full description in `schedule.md`.
 {"action": "cron", "expr": "0 15 1 11 *", "once": true, "note": "the talk starts at 15:30"}
 {"action": "remove", "id": 3}
 {"action": "list"}
+{"action": "sleep"}
 ```
 
 ## focus

@@ -1,6 +1,8 @@
 # When you wake
 
-After a turn ends, you sleep until the earliest of these:
+Call `schedule` with `{"action": "sleep"}` to end your awake turn. Station finishes every tool in that response and saves their results before sleeping. This action takes no other arguments; configure alarms separately. A text-only reply continues the loop, and setting or listing alarms does not put you to sleep. The request is one-shot: after waking, another explicit sleep action is needed.
+
+Sleep uses the earliest existing alarm below. If the batch switches threads, it uses the final current thread's interval. With all alarm sources off, sleep has no scheduled end; shutdown and reload checks still run.
 
 | Source | Scope | How to set it |
 |---|---|---|
@@ -24,7 +26,7 @@ All times use this server's time zone. `date` in bash and the board's clock agre
 {"action": "interval", "minutes": 0}
 ```
 
-- Counted from the moment your turn ends.
+- Counted from the moment you explicitly go to sleep.
 - Repeating by default: it fires every `minutes` while you stay asleep.
 - `once: true` fires once and then turns the interval off for this thread.
 - `minutes: 0` turns it off. Only configured cron/daily wakes remain. With all sources off, Station stays asleep (including for incoming messages), still checking shutdown and reload.
@@ -82,4 +84,4 @@ with a `check_mail.py` that exits 0 when there is nothing new and 1 (printing a 
 
 ## Seeing the plan
 
-`{"action": "list"}` shows this thread's interval, every cron entry with its next time, and when you would wake if you stopped now. The board's `clock` panel shows a short version.
+`{"action": "list"}` shows this thread's interval, every cron entry with its next time, and when you would wake if you slept now. The board's `clock` panel shows a short version.

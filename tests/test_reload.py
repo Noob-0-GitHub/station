@@ -92,7 +92,7 @@ def asleep_life(tmp_path, monkeypatch, ok, out=""):
     pkg = tmp_path / "watched"
     pkg.mkdir()
     (pkg / "mod.py").write_text("x = 1\n")
-    life = make(tmp_path, [[use("register", "t1", name="Lin")], [{"type": "text", "text": "sleeping"}]])
+    life = make(tmp_path, [[use("register", "t1", name="Lin")], [use("schedule", "sleep", action="sleep")]])
     life.cfg["schedule"]["default_minutes"] = 60
     life.cfg["reload"]["poll_seconds"] = 0
     life.watch_dirs = [pkg]

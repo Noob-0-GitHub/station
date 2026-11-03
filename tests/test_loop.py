@@ -109,7 +109,7 @@ def test_prefix_is_stable_across_calls(tmp_path):
 
 
 def test_message_does_not_wake(tmp_path):
-    life = make(tmp_path, [[use("register", "t1", name="Lin")], [{"type": "text", "text": "sleeping"}], [use("bash", "t3", command="true")]])
+    life = make(tmp_path, [[use("register", "t1", name="Lin")], [use("schedule", "sleep", action="sleep")], [use("bash", "t3", command="true")]])
     life.cfg["schedule"]["default_minutes"] = 0.02  # 1.2 s
     threading.Timer(0.2, lambda: Inbox(tmp_path / "inbox").put("message", "Anthony", "you there?")).start()
     t0 = time.time()
@@ -120,11 +120,13 @@ def test_message_does_not_wake(tmp_path):
     assert "-minute interval" in texts and "Anthony: you there?" in texts
 
 
-def test_text_reply_ends_the_turn(tmp_path):
+def test_text_reply_continues_the_awake_turn(tmp_path):
     life = make(tmp_path, [[use("register", "t1", name="Lin")], [{"type": "text", "text": "ok"}], [use("bash", "t2", command="true")]])
     life.run(max_calls=3)
     msg = life.llm.requests[2]["messages"][-1]["content"]
-    assert "Woke after" in msg[0]["text"]
+    assert "You remain awake" in msg[0]["text"]
+    assert not life.state.get("sleep")
+    assert '"kind": "rest"' not in (tmp_path / "state" / "log.jsonl").read_text()
     assert '"kind": "text"' in (tmp_path / "state" / "log.jsonl").read_text()
 
 
@@ -143,7 +145,7 @@ def test_crash_recovery_resumes(tmp_path):
 
 
 def test_crash_while_asleep_resumes_sleep(tmp_path):
-    life = make(tmp_path, [[use("register", "t1", name="Lin")], [{"type": "text", "text": "sleeping"}]])
+    life = make(tmp_path, [[use("register", "t1", name="Lin")], [use("schedule", "sleep", action="sleep")]])
     life.run(max_calls=2)
     hist = tmp_path / "state" / "threads" / "main.jsonl"
     lines = hist.read_text().splitlines()
