@@ -89,6 +89,51 @@ def test_all_models_failing_raise_the_main_error(tmp_path):
     assert life.state.get("model_route", {}).get("active", 0) == 0
 
 
+class KilledByStop(FakeLLM):
+    """A model call whose child process dies because Station itself is stopping (systemd cgroup SIGTERM)."""
+
+    def __init__(self, life_ref):
+        super().__init__([])
+        self.life_ref = life_ref
+
+    def call(self, system, tools, messages, tool_choice=None):
+        self.requests.append({"failed": True})
+        self.life_ref[0].stopping = True
+        raise LLMError("Claude Code exited while replaying the history", "transient")
+
+
+def test_failure_while_stopping_is_not_a_model_failure(tmp_path):
+    from station.loop import Stop
+
+    ref = [None]
+    backup = FakeLLM([ok("backup")])
+    life = routed(tmp_path, KilledByStop(ref), backup)
+    ref[0] = life
+    with pytest.raises(Stop):
+        life.call_model([], [], [{"role": "user", "content": []}])
+    assert backup.requests == []  # the fallback is not tried
+    assert life.state.get("model_route", {}).get("active", 0) == 0
+    log = (tmp_path / "state" / "log.jsonl")
+    assert not log.exists() or '"model_failed"' not in log.read_text()
+    errors = tmp_path / "state" / "errors.jsonl"
+    assert not errors.exists() or errors.read_text() == ""
+    assert life.drain_events() == []
+
+
+def test_stop_during_a_model_call_ends_the_run_without_fallback(tmp_path):
+    ref = [None]
+    backup = FakeLLM([ok("backup")])
+    life = routed(tmp_path, KilledByStop(ref), backup)
+    ref[0] = life
+    life.state["status"] = "registered"
+    life.store.append_history("main", {"role": "user", "content": [{"type": "text", "text": "awake"}]})
+    assert life.run() == "stopped"
+    assert backup.requests == []
+    saved = life.store.load_state()
+    assert saved.get("model_route", {}).get("active", 0) == 0
+    assert saved["last_exit"]["reason"] == "stopped"
+
+
 def test_route_survives_a_restart(tmp_path, monkeypatch):
     life = routed(tmp_path, Flaky([], LLMError("x", "auth")), FakeLLM([ok()]))
     life.call_model([], [], [{"role": "user", "content": []}])

@@ -18,7 +18,9 @@ NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ReadWritePaths=/home/station
-KillMode=control-group
+# mixed: SIGTERM goes to the launcher only, which forwards it to `station run`; a model call's child
+# process (claude -p) is not killed mid-call. Whatever is left after TimeoutStopSec gets SIGKILL.
+KillMode=mixed
 
 [Install]
 WantedBy=multi-user.target

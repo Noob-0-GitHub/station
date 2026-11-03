@@ -196,6 +196,11 @@ class Router:
             try:
                 response = self.attempt(i, system, tools, messages, tool_choice)
             except LLMError as e:
+                if self.life.stopping:
+                    # Station is shutting down: the stop signal can also reach a model's child process
+                    # (systemd signals the whole cgroup). Not a model failure: no fallback, no record.
+                    from .loop import Stop
+                    raise Stop() from None
                 errors.append((i, e))
                 if len(routes) > 1:
                     self.life.store.log("model_failed", model=self.name(routes[i]), error_kind=e.kind,

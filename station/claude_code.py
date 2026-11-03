@@ -73,6 +73,27 @@ STRIP_ENV = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", 
              "CLAUDE_CODE_EXTRA_BODY", "CLAUDE_CODE_EFFORT_LEVEL")
 LOGIN_HINT = ("Claude Code has no usable login for the user Station runs as. The operator must run "
               "`claude auth login` as that user.")
+STDERR_TAIL = 500  # characters of the CLI's stderr kept in a failed call's error
+
+
+def stderr_tail(path: Path, limit: int = STDERR_TAIL) -> str:
+    """The end of the CLI's stderr, one line, redacted; '' when there is none."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(max(f.tell() - limit * 4, 0))
+            text = f.read().decode("utf-8", "replace")
+    except OSError:
+        return ""
+    text = " | ".join(line.strip() for line in text.splitlines() if line.strip())
+    return redact(text[-limit:])
+
+
+def with_stderr(error: LLMError, path: Path) -> LLMError:
+    tail = stderr_tail(path)
+    if not tail:
+        return error
+    return LLMError(f"{error} [stderr: {tail}]", error.kind, status=error.status, retry_after=error.retry_after)
 
 
 def native_model(model: str) -> str:
@@ -241,8 +262,12 @@ class ClaudeCode:
                     "--no-session-persistence", "--mcp-config", json.dumps(mcp)]
                 if self.effort:
                     argv += ["--effort", self.effort]
-                proc = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                        text=True, encoding="utf-8", cwd=self._workdir(), env=env, start_new_session=True)
+                # stderr goes to a file (never a pipe nobody drains), so a failed call can say why.
+                err_path = root / "stderr.txt"
+                with open(err_path, "wb") as err:
+                    proc = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=err,
+                                            text=True, encoding="utf-8", cwd=self._workdir(), env=env,
+                                            start_new_session=True)
                 events: queue.Queue = queue.Queue()
 
                 def read():
@@ -258,9 +283,13 @@ class ClaudeCode:
 
                 reader = threading.Thread(target=read, daemon=True)
                 reader.start()
-                return self._converse(proc, events, replay, admission, names)
-        except BrokenPipeError:
-            raise LLMError("Claude Code exited while Station was sending the history", "transient") from None
+                try:
+                    return self._converse(proc, events, replay, admission, names)
+                except BrokenPipeError:
+                    raise with_stderr(LLMError("Claude Code exited while Station was sending the history",
+                                               "transient"), err_path) from None
+                except LLMError as e:
+                    raise with_stderr(e, err_path) from None
         except OSError as e:
             raise LLMError(f"Claude Code could not be run: {e}", "transient") from None
         finally:

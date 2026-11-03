@@ -13,6 +13,10 @@ from station.llm import LLMError, make_llm
 FAKE = r'''
 import json, os, pathlib, sys
 log = pathlib.Path(os.environ["FAKE_LOG"])
+if os.environ.get("FAKE_MODE") == "crash":  # dies before reading the history, like a killed CLI
+    sys.stderr.write("starting\nfatal: replay aborted sk-abcdefghijklmnop\n")
+    sys.stderr.flush()
+    sys.exit(2)
 rows = []
 for line in sys.stdin:
     r = json.loads(line)
@@ -131,6 +135,36 @@ def test_errors_map_to_station_kinds(cli):
     with pytest.raises(LLMError) as e:
         llm.call(SYSTEM, TOOLS, [user("hi")])
     assert e.value.kind == "quota"
+
+
+def test_failed_call_reports_redacted_stderr_tail(cli):
+    llm, _, monkeypatch = cli
+    monkeypatch.setenv("FAKE_MODE", "crash")
+    history = [user("first"), {"role": "assistant", "content": [{"type": "text", "text": "a"}]}, user("second")]
+    with pytest.raises(LLMError) as e:
+        llm.call(SYSTEM, TOOLS, history)
+    text = str(e.value)
+    assert e.value.kind == "transient"
+    assert "[stderr: starting | fatal: replay aborted [REDACTED]]" in text
+    assert "sk-abcdefghijklmnop" not in text
+
+
+def test_successful_call_and_empty_stderr_add_nothing(cli, tmp_path):
+    from station.claude_code import stderr_tail, with_stderr
+
+    llm, _, _ = cli
+    assert llm.call(SYSTEM, TOOLS, [user("hi")])["content"] == [{"type": "text", "text": "hello"}]
+    empty = tmp_path / "empty.txt"
+    empty.write_text("")
+    original = LLMError("boom", "quota", status=429, retry_after=7)
+    assert with_stderr(original, empty) is original
+    assert stderr_tail(tmp_path / "missing.txt") == ""
+    big = tmp_path / "big.txt"
+    big.write_text("x" * 10_000 + "\nlast line\n")
+    tail = stderr_tail(big)
+    assert len(tail) <= 500 and tail.endswith("last line")
+    wrapped = with_stderr(original, big)
+    assert (wrapped.kind, wrapped.status, wrapped.retry_after) == ("quota", 429, 7)
 
 
 def test_missing_cli_is_a_config_error(tmp_path):
