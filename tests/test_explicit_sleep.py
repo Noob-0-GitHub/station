@@ -104,6 +104,27 @@ def test_invalid_sleep_arguments_return_error_without_sleep(tmp_path, monkeypatc
     assert not life.pending_sleep and not life.state.get("sleep_requested")
 
 
+def test_sleep_accepts_empty_placeholder_fields_from_codex(tmp_path, monkeypatch):
+    # Exact arguments GPT-6.1 Sol sent in production: every schema field, all empty.
+    codex_args = {"action": "sleep", "minutes": 0, "once": False, "expr": "", "note": "", "hook": "", "id": 0}
+    life = build(tmp_path, registered_script([use("schedule", "sleep", **codex_args)]))
+    calls = fake_wake(life, monkeypatch)
+    life.run(max_calls=2)
+    assert len(calls) == 1
+    result = life.store.load_history()[-2]["content"][0]
+    assert result["tool_use_id"] == "sleep" and not result.get("is_error")
+    assert life.interval()["minutes"] == life.cfg["schedule"]["default_minutes"]
+
+
+def test_sleep_error_names_the_conflicting_fields(tmp_path):
+    life = build(tmp_path, [])
+    life.state["status"] = "registered"
+    with pytest.raises(ValueError, match=r"\(got minutes, once\)") as raised:
+        life.schedule_tool({"action": "sleep", "minutes": 5, "note": "", "once": True})
+    assert "note" not in str(raised.value)
+    assert not life.pending_sleep
+
+
 def test_sleep_finishes_and_saves_whole_batch_before_wait(tmp_path, monkeypatch):
     life = build(tmp_path, registered_script(
         [use("schedule", "sleep", action="sleep"),

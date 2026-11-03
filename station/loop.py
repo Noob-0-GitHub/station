@@ -872,8 +872,11 @@ class Life:
     def schedule_tool(self, args: dict) -> str:
         action = args.get("action")
         if action == "sleep":
-            if set(args) != {"action"}:
-                raise ValueError("sleep takes only action; set alarms in a separate schedule call")
+            # Some routes (Codex) fill every schema field with an empty placeholder; only real values conflict.
+            extra = sorted(k for k, v in args.items() if k != "action" and v not in (None, "", 0, False, [], {}))
+            if extra:
+                raise ValueError(f"sleep takes only action (got {', '.join(extra)}); "
+                                 "set alarms in a separate schedule call")
             self.pending_sleep = True
             return "OK: sleeping after this batch's tools finish and their results are saved."
         cfg = self.cfg["schedule"]

@@ -1,6 +1,6 @@
 # When you wake
 
-Call `schedule` with `{"action": "sleep"}` to end your awake turn. Station finishes every tool in that response and saves their results before sleeping. This action takes no other arguments; configure alarms separately. A text-only reply continues the loop, and setting or listing alarms does not put you to sleep. The request is one-shot: after waking, another explicit sleep action is needed.
+Call `schedule` with `{"action": "sleep"}` to end your awake turn. Station finishes every tool in that response and saves their results before sleeping. This action takes no other arguments (empty placeholders such as `0`, `""` or `false` are ignored); configure alarms separately. A text-only reply continues the loop, and setting or listing alarms does not put you to sleep. The request is one-shot: after waking, another explicit sleep action is needed.
 
 Sleep uses the earliest existing alarm below. If the batch switches threads, it uses the final current thread's interval. With all alarm sources off, sleep has no scheduled end; shutdown and reload checks still run.
 
