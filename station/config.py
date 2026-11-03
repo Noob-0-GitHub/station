@@ -167,8 +167,33 @@ DEFAULTS: dict = {
         "whisper-1": {"per_minute": 0.006},
         "text-embedding-3-small": {"input": 0.02},
         "text-embedding-3-large": {"input": 0.13},
-        # OpenAI list price (2026-10). Above 272k input tokens the whole request costs 2x on input
-        # and cache reads and 1.5x on output. Codex reports no cache writes.
+        # Standard OpenAI token rates checked 2026-11-03 (sources: dev/model-pricing.md).
+        # Above 272k input tokens the whole request costs 2x on input/cache and 1.5x on output.
+        # Codex reports no cache writes; do not map OpenAI's 30m/12h writes onto Anthropic's 5m/1h fields.
+        "gpt-6-astra": {
+            "input": 10.0,
+            "output": 50.0,
+            "cache_read": 1.0,
+            "long_context_tokens": 272000,
+            "long_input_x": 2.0,
+            "long_output_x": 1.5,
+        },
+        "gpt-6-luna": {
+            "input": 0.10,
+            "output": 0.50,
+            "cache_read": 0.01,
+            "long_context_tokens": 272000,
+            "long_input_x": 2.0,
+            "long_output_x": 1.5,
+        },
+        "gpt-6.1-terra": {
+            "input": 1.0,
+            "output": 5.0,
+            "cache_read": 0.05,
+            "long_context_tokens": 272000,
+            "long_input_x": 2.0,
+            "long_output_x": 1.5,
+        },
         "gpt-6.1-sol": {
             "input": 2.0,
             "output": 10.0,
