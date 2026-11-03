@@ -50,7 +50,7 @@ class Skills:
             raise ValueError(f"no skill {name}")
         target = base / (file or "SKILL.md")
         text = safe_read(target, base)
-        if file is None:
+        if not file:
             others = sorted(str(p.relative_to(base)) for p in base.rglob("*") if p.is_file() and p.name != "SKILL.md")
             if others:
                 text += "\n\n---\nOther files in this skill: " + ", ".join(others)

@@ -49,6 +49,14 @@ def change(thread: dict, args: dict) -> dict:
     action = args.get("action")
     if action not in ("hide", "show"):
         raise ValueError("expected hide or show")
+    # An unused optional selector may arrive as an empty string. Do not count it
+    # as a second selector, but preserve validation of every nonempty value.
+    args = dict(args)
+    for field in ("name", "tag"):
+        if args.get(field) == "":
+            args[field] = None
+    if args.get("all") is None:
+        args.pop("all", None)
     if "all" in args and not isinstance(args["all"], bool):
         raise ValueError("all must be a boolean")
     selected = [key for key in ("name", "tag") if args.get(key) is not None]

@@ -10,7 +10,7 @@ Each thread has its own history in `state/threads/<id>.jsonl`. A switch replaces
 
 - A new thread starts with one environment message: title, goal, where it came from, the context, a reminder that the old conversation is not visible, and up to `memory.recall_on_new` (3) memories found by title + goal + context (`Life.recall`). Recall skips the request when memory is empty, gives the search by meaning `memory.recall_timeout` (10 s) before falling back to words, and on any error logs it and adds nothing.
 - Returning to a thread appends a note (where the AI came from, or the closed child's report) to that thread's last message.
-- Every action takes an optional `context` (at most `CONTEXT_CHARS`, 2,000): a short handoff the AI writes, added to that same message as `Context from <id>: ...`. Like a subagent's task line, it is the only thing copied between threads; it is not stored anywhere else (except as a closed thread's `report`). Longer text is refused, not cut, so the AI knows to use a file.
+- `new`, `switch` and `close` take optional `context` (at most `CONTEXT_CHARS`, 2,000): a short handoff the AI writes, added to the destination message as `Context from <id>: ...`. Model/view actions do not carry handoff context. Like a subagent's task line, it is the only conversation text copied between threads; a closed thread also stores it as `report`. Longer text is refused, not cut, so the AI knows to use a file.
 - Events that arrive during a switch are delivered in the destination thread.
 
 Each thread has its own wake interval (see `schedule.md`). A thread that never set one uses `schedule.default_minutes`.

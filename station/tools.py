@@ -84,7 +84,11 @@ LIFE_TOOLS = [
             "No override means the global model configuration; model selection and failover state are per thread. "
             "view: inspect or change hidden board names/tags on the current thread or an id without switching. "
             "new/switch also accept hide_boards/hide_tags. Lists replace that field; [] clears it. "
-            "New threads start with no hidden panels; hiding is not inherited from the parent."
+            "New threads start with no hidden panels; hiding is not inherited from the parent. "
+            "Use changes to name exactly which settings to modify: [] or null changes none, "
+            "including when unused setting fields contain empty placeholders. "
+            "List fallback to intentionally disable it with []; list hide_boards/hide_tags to clear them. "
+            "Without changes, supplied relevant settings retain their existing explicit-update meaning."
         ),
         "input_schema": {
             "type": "object",
@@ -101,6 +105,12 @@ LIFE_TOOLS = [
                                        "model": {"type": "string"}, "effort": {"type": ["string", "null"]}},
                                        "required": ["provider", "model"], "additionalProperties": False}},
                 "inherit": {"type": "boolean", "description": "new/switch/model: true clears all thread model overrides; do not combine with model settings"},
+                "changes": {"type": ["array", "null"], "items": {"type": "string", "enum": [
+                    "provider", "model", "effort", "fallback", "inherit", "hide_boards", "hide_tags"]},
+                    "description": "Optional explicit setting-field mask. [] or null modifies no settings. "
+                                   "Listed fields need values and must apply to the action. "
+                                   "Unlisted empty setting placeholders are ignored; unlisted nonempty settings conflict. "
+                                   "Omit for legacy explicit-field semantics. Does not select title, goal, id or context."},
                 "hide_boards": {"type": "array", "items": {"type": "string"},
                                 "description": "new/switch/view: replace this thread's hidden panel names; [] clears names. The hidden overview cannot be hidden"},
                 "hide_tags": {"type": "array", "items": {"type": "string"},

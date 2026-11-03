@@ -717,6 +717,9 @@ class Life:
     # ---- focus -----------------------------------------------------------
 
     def focus_tool(self, args: dict) -> str:
+        from .tool_args import focus_args
+
+        args = focus_args(args)
         action = args.get("action")
         threads, current = self.state["threads"], self.state["current"]
         view_update = board_view.parse_update(args)

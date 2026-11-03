@@ -51,6 +51,26 @@ Thread ids are automatic sequential identifiers (`t1`, `t2`, ...), not random an
 - `close` returns to the parent's existing view. To change the current view directly, use the board tool's `hide`/`show` actions (`board.md`).
 - The virtual `hidden` panel lists the current rules and matching panel names/tags only. It cannot hide itself. Hidden command panels are not executed; their files remain available to `board read` or bash.
 
+## Explicit settings updates
+
+Use `changes` to say exactly which model/visibility settings this call modifies. It is optional; existing sparse calls without it keep their explicit-field behavior.
+
+```json
+{"action": "model", "changes": []}
+{"action": "switch", "id": "t1", "changes": [], "provider": "", "model": "", "effort": null, "fallback": [], "inherit": false, "hide_boards": [], "hide_tags": []}
+{"action": "model", "changes": ["fallback"], "fallback": []}
+{"action": "view", "changes": ["hide_boards"], "hide_boards": []}
+{"action": "model", "changes": ["provider", "model"], "provider": "codex", "model": "gpt-6.1-sol"}
+{"action": "model", "changes": ["inherit"], "inherit": true}
+```
+
+- Present `changes: []` or `changes: null` means **do not modify settings**, even if unused settings have empty placeholder values. This does not cancel the action itself: new still opens, switch still switches, and close still closes. Title, goal, id and context are action arguments, not settings selected by `changes`.
+- Nonempty values in unselected settings are a conflict, not silently ignored. Every listed setting must have a value and must apply to the action.
+- Model settings (`provider`, `model`, `effort`, `fallback`, `inherit`) apply to new/switch/model. Visibility settings (`hide_boards`, `hide_tags`) apply to new/switch/view.
+- Selected empty lists still mean a real clear/disable, selected effort null resets effort, and selected inherit true clears model overrides. Select both provider and model when changing the model.
+- Without changes, relevant supplied settings keep the semantics above. In particular, fallback [] still disables fallback, and visibility [] still clears rules. A legacy empty provider/model pair bundled with effort/fallback is rejected as ambiguous; use changes [] to inspect or list the settings you intend to update.
+- Irrelevant empty placeholders no longer conflict with the action. Nonempty irrelevant settings still fail. A new thread tolerates an empty unused id, never a custom nonempty id.
+
 ## What carries over
 
 Nothing from one thread's conversation is visible in another. Two ways to carry something across:
