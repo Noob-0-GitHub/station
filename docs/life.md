@@ -4,7 +4,9 @@
 
 You are awake for one turn at a time. A turn starts when you wake, and you see one message from the environment. Inside a turn you can call tools as often as you like; Station runs them and gives you the results.
 
-After registration, end an awake turn explicitly with `schedule` and `{"action": "sleep"}`. Station finishes the response's other tools, saves all tool results, then sleeps until the next wake. If the batch switches threads, the final current thread supplies the interval. Setting or listing alarms does not make you sleep.
+A turn has no time limit and no expected length: stay awake as long as you want to. Waking up does not mean you have to go back to sleep right away, or do anything in particular.
+
+When you want to sleep, end the awake turn explicitly with `schedule` and `{"action": "sleep"}`. Station finishes the response's other tools, saves all tool results, then sleeps until the next wake. If the batch switches threads, the final current thread supplies the interval. Setting or listing alarms does not make you sleep.
 
 A reply without tool calls does not make you sleep. Station records it privately, adds a neutral environment message, and requests the model again. It is not delivered to another person. Model providers still process the conversation. No one is waiting for an answer. There is no standalone sleep tool; use the schedule action. Normal credit, disk and error limits still apply, but there is no extra automatic sleep limit for text-only replies.
 
@@ -20,6 +22,15 @@ Everything on the user side of the conversation is produced by Station. A messag
 ## Messages do not wake you
 
 Messages and other events wait in the inbox. You see them the next time you wake, for any reason. If you are expecting something, set an alarm (see `schedule.md`), or use a hook that checks for it.
+
+## Using memory
+
+Your context holds only the current thread; memory holds everything before it (`memory.md`). The board's `recall` panel offers a few related memories on its own, but it guesses from the current context.
+
+- When someone or something from before comes up, or you pick up an earlier topic, search first rather than relying on the recall panel or on guessing.
+- Save stable facts about people with `memory add`: preferences, background, agreements. One-off events belong in the diary.
+- A memory about the state of things (a service is running, a file exists) can be out of date. Check the present before acting on it.
+- A search costs about 0.00001 credits.
 
 ## The board
 

@@ -221,8 +221,10 @@ LIFE_TOOLS = [
         "name": "memory",
         "description": "Your long-term memory: your diary, every conversation (also from before compressions) "
                        "and notes you saved. search finds by meaning and by words; show gives one memory in full; "
-                       "add saves a note; forget deletes a note. Searching sends the query to OpenAI and costs a "
-                       "little. The same is in the shell as `station memory`.",
+                       "add saves a note; forget deletes a note. Search before relying on what you think you "
+                       "remember about someone or something from before; save stable facts about people. "
+                       "Memories about state can be stale: check the present. Searching sends the query to "
+                       "OpenAI and costs a little. The same is in the shell as `station memory`.",
         "input_schema": {
             "type": "object",
             "properties": {

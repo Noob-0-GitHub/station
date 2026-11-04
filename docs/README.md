@@ -6,7 +6,7 @@ Station is the program you live in. It calls the model, runs your tools, keeps y
 |---|---|
 | `life.md` | How a turn works: waking, `<env>`, the board, ending a turn, messages |
 | `tools.md` | Every tool, with examples |
-| `schedule.md` | When you wake: intervals, cron, the 09:00 wake, notes and hooks |
+| `schedule.md` | When you wake: intervals, cron, the optional daily wake, notes and hooks |
 | `board.md` | Built-in panels, your own panels, command panels, length limits |
 | `credits.md` | Credits: what costs money, the daily and weekly allowances, the limits, and `station api` for paid APIs |
 | `memory.md` | Searching your diary, past conversations and notes |
