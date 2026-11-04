@@ -210,7 +210,7 @@ class Life:
         panel = self.home / "board" / "system.md"
         if not panel.exists():
             r.write(panel, template("panel-system.md"))
-        r.write(self.home / "terms.md", template("terms.md"), mode=0o444, own=False)
+        self.refresh_terms()
         for skill in resources.files("station").joinpath("templates", "skills").iterdir():
             target = self.home / "skills" / skill.name / "SKILL.md"
             if not target.exists():
@@ -1249,6 +1249,7 @@ class Life:
             return "exited"
         if self.state["status"] == "registered":
             self.seed_station_command()  # the interpreter path may have changed since registration
+            self.refresh_terms()  # shipped terms may have changed since registration
         self.store.finish_rotation()
         self.state.pop("credit_warned", None)  # before the ledger: warnings went to the inbox
         self.restart = self.start_info()
@@ -1475,3 +1476,13 @@ class Life:
         # the router turns the interruption into Stop, so it is neither a model failure nor a fallback.
         if first and self.in_model_call:
             raise CallInterrupted("Station is stopping", "transient")
+
+    def refresh_terms(self) -> None:
+        """~/terms.md is a read-only copy of the shipped terms; keep it current after upgrades."""
+        path, text = self.home / "terms.md", template("terms.md")
+        try:
+            if path.read_text() == text:
+                return
+        except OSError:
+            pass
+        self.runner.write(path, text, mode=0o444, own=False)

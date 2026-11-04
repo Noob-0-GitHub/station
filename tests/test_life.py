@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from station.loop import name_problem
+from station.loop import name_problem, template
 from station.notes import Diary, Todo
 from station.runner import Runner, safe_read
 from station.skills import Skills
@@ -254,3 +254,18 @@ def test_onboarding_load_order(tmp_path):
     assert "<board>" in second["messages"][-1]["content"][-1]["text"]
     assert "bash" in second["tools"] and "register" not in second["tools"]
     assert life.state["current"] == "main"
+
+
+def test_restart_refreshes_outdated_terms(tmp_path):
+    life = registered(tmp_path, extra=[[use("bash", "b", command="true")]])
+    life.run(max_calls=2)
+    terms = tmp_path / "home" / "terms.md"
+    os.chmod(terms, 0o644)
+    terms.write_text("old terms\n")
+    os.chmod(terms, 0o444)
+    life.refresh_terms()
+    assert terms.read_text() == template("terms.md")
+    assert terms.stat().st_mode & 0o777 == 0o444
+    before = terms.stat().st_mtime_ns
+    life.refresh_terms()
+    assert terms.stat().st_mtime_ns == before
