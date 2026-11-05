@@ -194,9 +194,21 @@ def openai_cost(prices: dict, model: str | None, usage: dict | None) -> float | 
             or usage.get("input_token_details") or {}
         cached = details.get("cached_tokens") or 0
         audio = details.get("audio_tokens") or 0
+        image = details.get("image_tokens") or 0
         out = usage.get("output_tokens", usage.get("completion_tokens")) or 0
-        if (out and "output" not in p) or (audio and "audio_input" not in p):
+        if (out and "output" not in p) or (audio and "audio_input" not in p) or (image and "image_input" not in p):
             return None
+        if image:
+            # Image models (gpt-image-*): text and image input have separate rates; output is image tokens.
+            # Cached input is split by kind when reported, otherwise treated as cached text.
+            cached_details = details.get("cached_tokens_details") or {}
+            cached_image = min(cached_details.get("image_tokens") or 0, image, cached)
+            cached_text = cached - cached_image
+            text = total_in - image - audio - cached_text
+            return ((text * p["input"] + cached_text * p.get("cache_read", p["input"])
+                     + (image - cached_image) * p["image_input"]
+                     + cached_image * p.get("image_cache_read", p["image_input"])
+                     + audio * p.get("audio_input", p["input"]) + out * p.get("output", 0.0)) / 1e6)
         if not audio:
             return credits_mod.call_cost({"output": 0.0, **p}, total_in - cached, 0, 0, cached, out)
         return ((total_in - cached - audio) * p["input"] + audio * p["audio_input"]

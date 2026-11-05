@@ -202,6 +202,15 @@ DEFAULTS: dict = {
             "long_input_x": 2.0,
             "long_output_x": 1.5,
         },
+        # Image generation, Standard rates checked 2026-11-04 (model page): text in 5 (cached 1.25),
+        # image in 8 (cached 2), image out 30. Text output is not billed; the response reports none.
+        "gpt-image-2.5-flare": {
+            "input": 5.0,
+            "cache_read": 1.25,
+            "image_input": 8.0,
+            "image_cache_read": 2.0,
+            "output": 30.0,
+        },
         "claude-opus-5-5": {
             "input": 4.0,
             "output": 20.0,

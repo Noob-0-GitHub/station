@@ -10,7 +10,7 @@ import urllib.error
 
 import pytest
 
-from station import api, clock
+from station import api, clock, config
 from station import credits as credits_mod
 from station.cli import main
 from station.config import DEFAULTS
@@ -273,6 +273,22 @@ def test_station_api_multipart_upload(tmp_path, keys, monkeypatch):
     row = Store(tmp_path / "state").ledger.rows(service="openai")[0]
     assert row["model"] == "gpt-4o-mini-transcribe"
     assert row["list_usd"] == pytest.approx((100 * 1.25 + 10 * 5.0) / 1e6)
+
+
+def test_image_generation_usage_is_priced_by_token_kind():
+    prices = config.DEFAULTS["prices"]
+    # Shape of a real /v1/images/generations response for gpt-image-2.5-flare (ledger, 2026-11-04).
+    usage = {"input_tokens": 194, "input_tokens_details": {"image_tokens": 0, "text_tokens": 194},
+             "output_tokens": 343, "output_tokens_details": {"image_tokens": 343, "text_tokens": 0}, "total_tokens": 537}
+    assert api.openai_cost(prices, "gpt-image-2.5-flare", usage) == pytest.approx((194 * 5 + 343 * 30) / 1e6)
+    assert api.openai_cost(prices, "gpt-image-2.5-flare-2026-09-08", usage) == pytest.approx((194 * 5 + 343 * 30) / 1e6)
+    edit = {"input_tokens": 1100, "input_tokens_details": {"image_tokens": 1000, "text_tokens": 100, "cached_tokens": 300,
+                                                            "cached_tokens_details": {"image_tokens": 200}},
+            "output_tokens": 500}
+    expected = ((100 - 100) * 5 + 100 * 1.25 + 800 * 8 + 200 * 2 + 500 * 30) / 1e6
+    assert api.openai_cost(prices, "gpt-image-2.5-flare", edit) == pytest.approx(expected)
+    # A model without an image_input rate is not priced as if image tokens were text.
+    assert api.openai_cost(prices, "gpt-6-luna", edit) is None
 
 
 def test_unpriced_calls_are_recorded_and_shown(tmp_path, keys, monkeypatch, capsys):

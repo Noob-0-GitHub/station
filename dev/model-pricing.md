@@ -50,3 +50,9 @@ Previously passing tests were not rerun. No real model, credential refresh, prov
 [2] https://developers.openai.com/api/docs/models/gpt-6-astra.md
 [3] https://developers.openai.com/api/docs/models/gpt-6-luna.md
 [4] https://developers.openai.com/api/docs/models/gpt-6.1-terra.md
+
+## Image generation
+
+Checked on 2026-11-04 against the `gpt-image-2.5-flare` model page. Standard rates, USD per million tokens: text input 5 (cached 1.25), image input 8 (cached 2), image output 30. Text output is not billed. Snapshot `gpt-image-2.5-flare-2026-09-08` maps to the base name.
+
+`api.openai_cost` prices image-model usage by token kind when `input_tokens_details.image_tokens` is present: text input at `input`, image input at `image_input`, cached image input at `image_cache_read` when `cached_tokens_details.image_tokens` is reported (otherwise cached tokens count as cached text), and `output_tokens` at `output`. A model without an `image_input` rate stays unpriced instead of charging image tokens as text. Existing ledger rows are not recalculated.
