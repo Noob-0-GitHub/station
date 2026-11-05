@@ -1,0 +1,12 @@
+# Template for /etc/systemd/system/station-NAME.slice, written by station-provision (NAME replaced).
+# Measured on vps1: Chromium via agent-browser peaks ~490 MB, one `claude -p` ~220 MB, Station ~50 MB.
+# Above MemoryHigh the kernel reclaims and swaps (slow, not killed); MemoryMax is the hard stop.
+[Unit]
+Description=Station instance NAME
+
+[Slice]
+CPUQuota=100%
+MemoryHigh=1400M
+MemoryMax=1800M
+MemorySwapMax=1G
+TasksMax=256

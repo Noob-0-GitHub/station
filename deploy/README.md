@@ -17,6 +17,21 @@ How Station was deployed on vps1 (P7, 2026-11-02), written so it can be repeated
 
 Requirements: Debian 12 or similar with systemd and cgroup v2, nftables, Python 3.11+ with venv, git, curl, ffmpeg. `kernel.unprivileged_userns_clone = 1` for Chromium's sandbox as a normal user.
 
+## Several instances on one machine (station@NAME)
+
+New deployments run each AI as its own instance: Unix user `NAME` with `/home/NAME`, service `station@NAME.service` (template `station@.service`), slice `station-NAME.slice` nested under `station.slice` (the limits for all instances together), and its uid in `/etc/station/instances.nft`, which the shared network rule (`station-instances.nft`, installed as `/etc/station/station.nft`) includes. `NAME` is lowercase letters and digits, no dashes (systemd nests slices by dashes).
+
+```bash
+deploy/station-provision NAME --dry-run     # shows every change, makes none
+deploy/station-provision NAME               # user, slice, uid set, shared units; starts nothing
+# then install Station as NAME (step 6 with /home/NAME), keys, logins, `station check`
+systemctl enable --now station@NAME         # go live, separately
+```
+
+A machine set up with the single-instance files below (`station.nft` naming user `station`, a one-AI `station.slice`) is refused until `--migrate`, which backs those files up as `*.legacy-TIMESTAMP` first. Instances are isolated by user, slice and the network rule, but not from each other's ports 10000 and up. Each instance needs its own Telegram bot and Bilibili account; a model subscription can be shared, along with its rate limits. `station-codex-sync` still targets user `station`; adjust `--user`/`--dest` per instance.
+
+The single-instance steps below are how vps1 was deployed (user `station`, `station.service`, `station.slice`, `station.nft`) and stay valid there.
+
 ## Steps
 
 ### 1. User

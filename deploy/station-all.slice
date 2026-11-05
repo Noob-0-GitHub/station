@@ -1,0 +1,11 @@
+# Installed as /etc/systemd/system/station.slice: the parent of every station-NAME.slice.
+# These limits apply to all Station instances on the machine together. Size them per server.
+[Unit]
+Description=Station (all instances)
+
+[Slice]
+CPUQuota=100%
+MemoryHigh=2000M
+MemoryMax=2400M
+MemorySwapMax=2G
+TasksMax=1024

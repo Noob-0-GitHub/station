@@ -1,0 +1,111 @@
+#!/bin/bash
+# station-provision NAME [--dry-run] [--migrate]
+#
+# Prepares the system side of one Station instance, as root, and starts nothing:
+#   user NAME with /home/NAME (700), /etc/systemd/system/station-NAME.slice,
+#   NAME's uid in /etc/station/instances.nft (network rules reloaded),
+#   the shared station@.service, station.slice and station-nft.service if missing.
+# Safe to run again for an existing instance user (for example after `usermod -l`).
+# --migrate replaces single-instance shared files from older deployments (a station.nft without the
+# instances include, a station.slice sized for one AI) after backing them up as *.legacy-TIMESTAMP.
+# Then install Station as NAME (deploy/README.md, "Install Station"), and go live separately:
+#   systemctl enable --now station@NAME
+set -euo pipefail
+
+usage() { echo "usage: station-provision NAME [--dry-run] [--migrate]" >&2; exit 2; }
+[ $# -ge 1 ] || usage
+NAME=$1; shift
+DRY=0; MIGRATE=0
+for a in "$@"; do case $a in --dry-run) DRY=1 ;; --migrate) MIGRATE=1 ;; *) usage ;; esac; done
+
+# No dashes: systemd nests slices by dashes, so station-a-b.slice would land under station-a.slice.
+if ! [[ $NAME =~ ^[a-z][a-z0-9]{1,30}$ ]]; then
+  echo "NAME must be 2-31 characters: a lowercase letter, then lowercase letters or digits" >&2; exit 2
+fi
+case $NAME in root|station|all|instance|nobody|daemon|admin|debian|ubuntu) echo "reserved name: $NAME" >&2; exit 2 ;; esac
+[ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
+
+HERE=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
+ETC=/etc/station
+UNITS=/etc/systemd/system
+run() { if [ $DRY = 1 ]; then printf 'would run:'; printf ' %q' "$@"; echo; else "$@"; fi; }
+
+# 1. User. An existing user is adopted only if it is an ordinary unprivileged account.
+if getent passwd "$NAME" >/dev/null; then
+  uid=$(id -u "$NAME")
+  [ "$uid" -ge 1000 ] || { echo "$NAME exists with system uid $uid; refusing" >&2; exit 1; }
+  for g in sudo wheel adm docker lxd incus; do
+    if id -nG "$NAME" | tr ' ' '\n' | grep -qx "$g"; then echo "$NAME is in group $g; refusing" >&2; exit 1; fi
+  done
+  [ "$(getent passwd "$NAME" | cut -d: -f6)" = "/home/$NAME" ] || { echo "$NAME's home is not /home/$NAME; refusing" >&2; exit 1; }
+  echo "user $NAME exists (uid $uid), adopting"
+else
+  run useradd --create-home --home-dir "/home/$NAME" --shell /bin/bash --user-group "$NAME"
+  uid=$( [ $DRY = 1 ] && echo NEW || id -u "$NAME")
+fi
+run chmod 700 "/home/$NAME"
+
+# 2. Shared units, installed once and never overwritten here (update them deliberately).
+install_once() {  # src dest
+  if [ -e "$2" ] && ! [[ " $REPLACED " == *" $2 "* ]]; then echo "keep existing $2"
+  else run install -m 644 "$1" "$2"; fi
+}
+# Older single-instance deployments: their station.nft names one user, their station.slice is sized
+# for one AI. Keeping them would leave new instances unfiltered or squeezed, so stop or migrate.
+STAMP=$(date +%Y%m%dT%H%M%S)
+REPLACED=""
+legacy() {  # dest marker-regex description
+  [ -e "$1" ] && ! grep -qE "$2" "$1" || return 0
+  if [ $MIGRATE = 0 ]; then
+    echo "$1 is from a single-instance deployment ($3). Rerun with --migrate to back it up and replace it." >&2
+    exit 1
+  fi
+  run cp -p "$1" "$1.legacy-$STAMP"
+  REPLACED="$REPLACED $1"
+}
+legacy "$ETC/station.nft" 'include "/etc/station/instances.nft"' "no instances include"
+legacy "$UNITS/station.slice" 'all instances' "limits for one AI"
+install_once "$HERE/station@.service" "$UNITS/station@.service"
+install_once "$HERE/station-all.slice" "$UNITS/station.slice"
+install_once "$HERE/station-nft.service" "$UNITS/station-nft.service"
+run install -d -m 755 "$ETC"
+install_once "$HERE/station-instances.nft" "$ETC/station.nft"
+
+# 3. This instance's slice.
+slice="$UNITS/station-$NAME.slice"
+if [ -e "$slice" ]; then echo "keep existing $slice"
+elif [ $DRY = 1 ]; then echo "would write $slice from station-instance.slice"
+else sed "s/NAME/$NAME/g" "$HERE/station-instance.slice" > "$slice.tmp" && chmod 644 "$slice.tmp" && mv "$slice.tmp" "$slice"
+fi
+
+# 4. Network rules: the uid set is every instance user with a station-*.slice, plus this one.
+uids=()
+for f in "$UNITS"/station-*.slice; do
+  [ -e "$f" ] || continue
+  n=$(basename "$f" .slice); n=${n#station-}
+  getent passwd "$n" >/dev/null && uids+=("$(id -u "$n")")
+done
+uids+=("$uid")  # NEW in a dry run for a user not yet created
+set_line="define station_uids = { $(printf '%s\n' "${uids[@]}" | sort -un | paste -sd, | sed 's/,/, /g') }"
+if [ $DRY = 1 ]; then
+  echo "would write $ETC/instances.nft: $set_line"
+  echo "would reload: nft -f $ETC/station.nft (station-nft.service)"
+else
+  # station.nft includes this fixed path, so swap it in, check, and put the old one back on failure.
+  [ -e "$ETC/instances.nft" ] && cp -p "$ETC/instances.nft" "$ETC/instances.nft.prev"
+  printf '# Written by station-provision. Station instance uids (meta skuid).\n%s\n' "$set_line" > "$ETC/instances.nft.tmp"
+  chmod 644 "$ETC/instances.nft.tmp" && mv "$ETC/instances.nft.tmp" "$ETC/instances.nft"
+  if ! nft -c -f "$ETC/station.nft"; then
+    [ -e "$ETC/instances.nft.prev" ] && mv "$ETC/instances.nft.prev" "$ETC/instances.nft"
+    echo "network rules failed the check; previous uid set restored, nothing reloaded" >&2; exit 1
+  fi
+  rm -f "$ETC/instances.nft.prev"
+  systemctl daemon-reload
+  systemctl enable station-nft.service >/dev/null
+  systemctl restart station-nft.service
+fi
+
+echo
+echo "Instance $NAME: user ready, slice station-$NAME.slice, network rules cover uid(s) ${uids[*]:-}."
+echo "Next: install Station as $NAME (deploy/README.md), keys and logins, then 'station check'."
+echo "Go live separately: systemctl enable --now station@$NAME"

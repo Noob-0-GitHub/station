@@ -1,0 +1,30 @@
+# One Station instance per Unix user: `station@NAME.service` runs as user NAME from /home/NAME.
+# Create the instance with `station-provision NAME` first. Installing or provisioning does not start
+# anything; `systemctl enable --now station@NAME` is the separate go-live step for that instance.
+[Unit]
+Description=Station instance %i
+After=network-online.target station-nft.service
+Wants=network-online.target
+Requires=station-nft.service
+
+[Service]
+User=%i
+Group=%i
+# station-NAME.slice sits under station.slice (systemd nests slices by dashes): per-instance limits
+# there, the limits for all instances together in station.slice.
+Slice=station-%i.slice
+WorkingDirectory=/home/%i
+Environment=HOME=/home/%i LANG=C.UTF-8 PATH=/home/%i/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/%i/station/.venv/bin/python -P /home/%i/station/launcher.py --root /home/%i/.station --code /home/%i/station
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/home/%i
+# mixed: SIGTERM goes to the launcher only, which forwards it to `station run`; a model call's child
+# process (claude -p) is not killed mid-call. Whatever is left after TimeoutStopSec gets SIGKILL.
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

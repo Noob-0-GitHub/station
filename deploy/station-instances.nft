@@ -1,0 +1,22 @@
+#!/usr/sbin/nft -f
+# Station instances (P7). Every uid in /etc/station/instances.nft may reach the internet, and on this
+# machine only ports 10000 and up (its own Claude CLI relay and agent-browser <-> Chromium use random
+# high ports), plus the local DNS stub. Ports below 10000 on any local address (SSH, Redis, Hermes
+# API, nginx, the operator's services) and private, link-local (cloud metadata) and CGNAT networks
+# are refused. The table is inet, so this covers IPv4 and IPv6.
+# Instances are not isolated from each other's high ports: nft sees who connects, not who listens.
+# Installed as /etc/station/station.nft; station-provision regenerates instances.nft.
+include "/etc/station/instances.nft"
+table inet station
+delete table inet station
+table inet station {
+    chain output {
+        type filter hook output priority 0; policy accept;
+        meta skuid != $station_uids accept
+        ip daddr { 127.0.0.53, 127.0.0.54 } meta l4proto { tcp, udp } th dport 53 accept
+        fib daddr type local th dport < 10000 counter reject
+        fib daddr type local accept
+        ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10 } counter reject
+        ip6 daddr { fc00::/7, fe80::/10 } counter reject
+    }
+}
