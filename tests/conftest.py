@@ -32,6 +32,10 @@ def no_network(monkeypatch):
         _refuse()
 
     monkeypatch.setattr(socket.socket, "connect", connect)
+    # The production pause between rounds (pace.gap_seconds, 60 s) would make every loop test slow.
+    from station import config as config_mod
+
+    monkeypatch.setitem(config_mod.DEFAULTS["pace"], "gap_seconds", 0)
     # Never start the real Claude Code CLI (it would use a real subscription login): only an
     # explicit fake given by absolute path in claude_code.command may run.
     from station import claude_code

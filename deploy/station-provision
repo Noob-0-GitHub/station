@@ -106,6 +106,6 @@ else
 fi
 
 echo
-echo "Instance $NAME: user ready, slice station-$NAME.slice, network rules cover uid(s) ${uids[*]:-}."
+echo "Instance $NAME: user ready, slice station-$NAME.slice, network rules cover uid(s) $(printf '%s\n' "${uids[@]}" | sort -un | paste -sd' ')."
 echo "Next: install Station as $NAME (deploy/README.md), keys and logins, then 'station check'."
 echo "Go live separately: systemctl enable --now station@$NAME"

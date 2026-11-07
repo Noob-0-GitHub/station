@@ -60,6 +60,12 @@ DEFAULTS: dict = {
         "hook_timeout": 60,  # seconds; a hook that times out wakes the AI
         "poll_seconds": 1.0,
     },
+    "pace": {
+        # Seconds between a reply's tools finishing (or a text-only reply) and the next model call.
+        # Station is not built for speed: messages and events that arrive meanwhile join the same
+        # round. 0 = no pause. Not applied before sleep, during onboarding, or on exit.
+        "gap_seconds": 60,
+    },
     "board": {
         "panel_max_chars": 1200,  # per panel, unless its front matter sets max_chars
         "max_chars": 6000,  # whole board; later panels are cut first

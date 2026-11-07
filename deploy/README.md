@@ -8,7 +8,7 @@ How Station was deployed on vps1 (P7, 2026-11-02), written so it can be repeated
 |---|---|---|
 | user `station` | `/home/station` (700) | the AI's account: no sudo, no docker, no password |
 | `station.slice` | `/etc/systemd/system/` | CPU 50%, memory high 700M / max 900M, swap 1G, 256 tasks |
-| `station.nft` + `station-nft.service` | `/etc/station/`, `/etc/systemd/system/` | network rules for user `station` |
+| `station.nft` + `station-nft.service` | `/etc/station/`, `/etc/systemd/system/` | network rules for Station instance users |
 | browser | `/opt/station-browser/` (root-owned, read-only) | agent-browser + Chromium, copied from Hermes's tools |
 | Claude Code CLI | `/opt/station-claude/claude` (root-owned) | the binary for provider `claude-subscription-directsdk-experimental` |
 | Station code | `/home/station/station` (Git: `upstream` = releases, `main` = the AI's work) | installed from a release tarball |

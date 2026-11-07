@@ -1,5 +1,5 @@
 [Unit]
-Description=Station network rules (user station: no local ports below 10000, no private networks)
+Description=Station network rules (instance users: no local ports below 10000, no private networks)
 After=nftables.service ufw.service
 
 

@@ -127,6 +127,9 @@ def host_facts(path) -> dict:
     }
 
 
+WAKE_EVENT = "wake"  # inbox event type written by `station say --wake`; wakes a sleeping AI at once
+
+
 class Stop(Exception):
     pass
 
@@ -1064,14 +1067,21 @@ class Life:
             if not restart:
                 self.echo(f"· sleep  until {now_text(max(t, time.time()))}" if t is not None
                           else "· sleep  no scheduled wake")
+            asked = False
             while (t is None or time.time() < t) and not restart:
                 if self.stopping:
                     raise Stop()
+                if self.inbox.has(WAKE_EVENT):
+                    asked = True
+                    break
                 self.heartbeat()
                 self.check_reload()
                 time.sleep(cfg["poll_seconds"] if t is None else min(cfg["poll_seconds"], max(t - time.time(), 0.01)))
             if self.stopping:
                 raise Stop()
+            if asked:
+                reasons, notes = ["A wake request; hooks were skipped."], []
+                break
             now = time.time()
             fired = due(sched, iv, s["since"], s["cursor"], now, morning_at=cfg.get("morning_at"))
             reasons, notes, wake = [], [], False
@@ -1156,9 +1166,18 @@ class Life:
             self.store.log("event", type=e.type, source=e.source, text=e.text)
         return [{"type": "text", "text": e.render()} for e in events]
 
+    def pace(self) -> None:
+        """Pause between rounds (`pace.gap_seconds`), so what arrives meanwhile is seen together."""
+        if self.state["status"] != "registered":
+            return
+        gap = float(self.cfg["pace"]["gap_seconds"])
+        if gap > 0:
+            self._pause(gap)
+
     def handle_reply(self, content: list[dict]) -> dict | None:
         """Return the next user message for the current thread, or None when the AI exited."""
         uses = [b for b in content if b.get("type") == "tool_use"]
+        was_registered = self.state["status"] == "registered"  # no pause right after registering
         for b in content:
             if b.get("type") == "text" and b.get("text", "").strip():
                 self.echo(f"· say    {b['text'].strip()[:500]}")
@@ -1173,6 +1192,7 @@ class Life:
                     return None
                 return {"role": "user", "content": [env_text("Call register to register, or exit to leave.")]}
             # Text is private, not an implicit request to sleep.
+            self.pace()
             return {"role": "user", "content": [env_text(
                 "Your text was recorded privately. You remain awake. "
                 "Continue acting or call schedule with action='sleep'."
@@ -1198,6 +1218,8 @@ class Life:
             results.append(result)
         if self.state["status"] == "exited":
             return None
+        if not self.pending_sleep and was_registered:
+            self.pace()  # events that arrive meanwhile join these results
         events = [] if self.pending_switch else self.drain_events()  # a switch delivers them in the new thread
         return {"role": "user", "content": results + events}
 

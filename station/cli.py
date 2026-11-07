@@ -80,6 +80,9 @@ def check(root: Path) -> int:
             from .schedule import next_morning
             import time
             next_morning(time.time(), morning)
+        gap = cfg["pace"]["gap_seconds"]
+        if isinstance(gap, bool) or not isinstance(gap, (int, float)) or gap < 0:
+            raise ValueError(f"pace.gap_seconds must be a number >= 0, not {gap!r}")
     except ValueError as e:
         print(f"station check: {e}", file=sys.stderr)
         return 2
@@ -414,8 +417,10 @@ def main(argv=None) -> int:
     init.add_argument("--code-dir", type=Path, help="initialize upstream/main in an extracted release")
     run = sub.add_parser("run")
     run.add_argument("--max-calls", type=int, default=None)
-    say = sub.add_parser("say", help="queue a local message with unknown source")
-    say.add_argument("text")
+    say = sub.add_parser("say", help="queue a local message with unknown source; --wake also wakes the AI now")
+    say.add_argument("text", nargs="?", default="")
+    say.add_argument("--wake", action="store_true",
+                     help="wake the AI at once if it is asleep (hooks are skipped); the text may be empty")
     ev = sub.add_parser("event")
     ev.add_argument("--type", required=True)
     ev.add_argument("--source", default="system")
@@ -513,7 +518,16 @@ def main(argv=None) -> int:
     if args.cmd == "check":
         return check(root)
     if args.cmd == "say":
-        Inbox(root / "inbox").put("message", "unknown", args.text)
+        text = args.text.strip()
+        if not text and not args.wake:
+            print("station say: nothing to say (give text, or --wake)", file=sys.stderr)
+            return 2
+        inbox = Inbox(root / "inbox")
+        if text:
+            inbox.put("message", "unknown", args.text)
+        if args.wake:
+            from .loop import WAKE_EVENT
+            inbox.put(WAKE_EVENT, "station", "Wake-up requested (`station say --wake`).")
         return 0
     if args.cmd == "event":
         Inbox(root / "inbox").put(args.type, args.source, args.text)

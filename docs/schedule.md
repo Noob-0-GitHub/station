@@ -10,7 +10,7 @@ Sleep uses the earliest existing alarm below. If the batch switches threads, it 
 | Cron | Shared by all threads, up to 20 entries | `schedule` with `action: cron` |
 | Daily wake | Optional daily local time | `schedule.morning_at` in runtime YAML; null disables it |
 
-Messages from others never wake you. They are delivered with the next wake.
+Messages from others never wake you. They are delivered with the next wake. The exception is an explicit wake request: `station say --wake ["text"]` wakes you at once if you are asleep, skipping hooks; the text, if any, comes with the wake as an ordinary message. While you are awake the request is just an event.
 
 All times use this server's time zone. `date` in bash and the board's clock agree.
 

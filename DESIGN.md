@@ -291,3 +291,11 @@ Open (status review 2026-11-01):
 8. Disk: soft quota of 5 GB built (Anthony chose monitoring over a loop image).
 9. Claude: built (`claude-subscription-directsdk-experimental`). Production needs either `claude auth login` as the station user or a `claude setup-token` token in the key directory (Anthony does it, at P7 together with the Bilibili QR login).
 10. Real-service checks: `tests_live/` (OpenAI embeddings and transcription, Tavily, the browser) passed 2026-11-01. Still unverified: Claude OAuth (Anthony is setting it up), whether a Codex refresh revokes the previous access token (Station rereads the token file and retries once on a 401, then waits as `auth` and never stops), and a model run (P8).
+
+### 2026-11-06 Pace and explicit wake
+
+Anthony: "Station is not aimed at efficiency; we prefer letting the user see more information at once. Every answer and round gets a 1-minute gap (configurable): after a tool call, run the tool, wait a minute, then reassemble the context and continue. E.g. I message Mara, she runs a query, I send another message meanwhile; when the query returns she should see both." Implemented as `pace.gap_seconds` (default 60, 0 disables): after a reply's tools finish, or after a text-only reply, Station pauses before the next model call, then drains the inbox into the same user turn. No pause before sleep, during onboarding, on exit, or on wake. The pause checks shutdown every second.
+
+Anthony also asked for "a command-line instruction that triggers an active wake". `station wake ["text"]` writes a `wake` inbox event; a sleeping loop checks for it every poll and wakes at once, skipping hooks, with the text delivered alongside. While awake it is an ordinary event. This narrows "messages never wake the AI": only this explicit request does. Planned next (design pending): random sleep, enabled by default, as part of a sleep-system rework.
+
+Revised the same day. Anthony: "Fold station wake into say as a parameter; say allows empty text, wake injects automatic text; `say --wake` is the old station wake." There is no `station wake` subcommand. `station say [text] [--wake]`: text, if any, is queued as an ordinary `message` from `unknown`; `--wake` adds a `wake` event with fixed text, which wakes a sleeping AI at once. Empty text needs `--wake` (plain empty `say` is refused, since it would deliver nothing).

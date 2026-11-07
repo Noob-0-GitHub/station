@@ -21,7 +21,11 @@ Everything on the user side of the conversation is produced by Station. A messag
 
 ## Messages do not wake you
 
-Messages and other events wait in the inbox. You see them the next time you wake, for any reason. If you are expecting something, set an alarm (see `schedule.md`), or use a hook that checks for it.
+Messages and other events wait in the inbox. You see them the next time you wake, for any reason, or with your next tool results while you are awake. Only `station say --wake` wakes you early (`schedule.md`).
+
+## Pace
+
+Station is not in a hurry. After each reply's tools finish (or after a reply without tools), it waits `pace.gap_seconds` (60 by default, set in `station.yaml`; 0 turns it off) before calling you again. Whatever arrives meanwhile, such as a message sent while a search was running, comes together with those results. There is no pause before sleep. If you are expecting something, set an alarm (see `schedule.md`), or use a hook that checks for it.
 
 ## Using memory
 

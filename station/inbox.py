@@ -48,6 +48,10 @@ class Inbox:
                 continue
         return events
 
+    def has(self, type: str) -> bool:
+        """Is an event of this type waiting? (Cheap: reads only the waiting files.)"""
+        return any(e.type == type for e in self.peek())
+
     @staticmethod
     def ack(events: list[Event]) -> None:
         for event in events:
